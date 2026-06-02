@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { useApp } from './AppContext';
+import { 
+  Banknote, TrendingUp, FileText, 
+  User, List, Settings, Search, Printer, Check
+} from 'lucide-react';
 
 export default function PaiementsPage() {
-  const { eleves, classes, paiements, frais, enregistrerPaiement, utilisateurActif, setFrais } = useApp();
+  const { eleves, classes, paiements, frais, enregistrerPaiement, utilisateurActif, setFrais, schoolSettings } = useApp();
   const [modal, setModal] = useState(null);
   const [selectedEleve, setSelectedEleve] = useState('');
   const [formPay, setFormPay] = useState({ type: 'scolarite', montant: '', statut: 'payé', trancheId: '' });
@@ -65,7 +69,7 @@ export default function PaiementsPage() {
       .footer{text-align:center;margin-top:24px;font-size:12px;color:#999}
       .stamp{border:2px solid #1B4F72;border-radius:50%;width:80px;height:80px;display:flex;align-items:center;justify-content:center;margin:20px auto;font-weight:bold;color:#1B4F72;font-size:11px;text-align:center}
     </style></head><body>
-      <div class="header"><h1>🎓 ÉCOLE LES ÉTOILES</h1><p class="sub">Douala, Cameroun — Reçu de paiement</p></div>
+      <div class="header"><h1>${schoolSettings?.nom?.toUpperCase() || 'ÉCOLE LES ÉTOILES'}</h1><p class="sub">${schoolSettings?.ville || 'Douala'}, Cameroun — Reçu de paiement</p></div>
       <div class="field"><span>N° Reçu</span><strong>${p.recu}</strong></div>
       <div class="field"><span>Date</span><span>${p.date}</span></div>
       <div class="field"><span>Élève</span><strong>${e?.prenom} ${e?.nom}</strong></div>
@@ -76,7 +80,7 @@ export default function PaiementsPage() {
       <div class="total">Montant: ${p.montant.toLocaleString('fr')} FCFA</div>
       <div class="stamp">PAYÉ ✓</div>
       <div class="field"><span>Caissier</span><span>${p.caissier || '—'}</span></div>
-      <div class="footer">École Les Étoiles · BP 1234 · Douala · Tél: +237 677 000 000<br>Ce reçu est valable comme preuve de paiement</div>
+      <div class="footer">${schoolSettings?.nom || 'École Les Étoiles'} · ${schoolSettings?.ville || 'Douala'} · Tél: ${schoolSettings?.telephone || '+237 677 000 000'}<br>Ce reçu est valable comme preuve de paiement</div>
     </body></html>`);
     win.document.close(); win.print();
   };
@@ -87,13 +91,13 @@ export default function PaiementsPage() {
       {peutModifier && (
         <div style={styles.statsRow}>
           {[
-            { label: 'Total encaissé', value: totalEncaisse.toLocaleString('fr') + ' FCFA', icon: '💰', color: '#27AE60' },
-            { label: 'Taux recouvrement', value: tauxRecouvrement + '%', icon: '📈', color: '#2980B9' },
-            { label: 'Nbre de reçus', value: paiements.length, icon: '🧾', color: '#F39C12' },
-            { label: 'Élèves actifs', value: actifs.length, icon: '👦', color: '#8E44AD' },
-          ].map(s => (
-            <div key={s.label} className="stat-card" style={{ flex: 1 }}>
-              <div className="stat-icon" style={{ background: s.color + '18' }}><span style={{ fontSize: 22 }}>{s.icon}</span></div>
+            { label: 'Total encaissé', value: totalEncaisse.toLocaleString('fr') + ' FCFA', icon: <Banknote size={24} />, color: '#27AE60' },
+            { label: 'Taux recouvrement', value: tauxRecouvrement + '%', icon: <TrendingUp size={24} />, color: '#2980B9' },
+            { label: 'Nbre de reçus', value: paiements.length, icon: <FileText size={24} />, color: '#F39C12' },
+            { label: 'Élèves actifs', value: actifs.length, icon: <User size={24} />, color: '#8E44AD' },
+          ].map((s, i) => (
+            <div key={i} className="stat-card" style={{ flex: 1 }}>
+              <div className="stat-icon" style={{ background: s.color + '18', color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.icon}</div>
               <div><div className="stat-value" style={{ fontSize: 20 }}>{s.value}</div><div className="stat-label">{s.label}</div></div>
             </div>
           ))}
@@ -102,8 +106,14 @@ export default function PaiementsPage() {
 
       {/* Onglets */}
       <div className="pill-tabs">
-        {[['liste', '📋 Tous les paiements'], ['eleve', '👦 Par élève'], ...(role === 'fondateur' ? [['parametres', '⚙️ Paramètres']] : [])].map(([k, l]) => (
-          <button key={k} className={`pill-tab ${onglet === k ? 'active' : ''}`} onClick={() => setOnglet(k)}>{l}</button>
+        {[
+          { key: 'liste', label: 'Tous les paiements', icon: <List size={16} /> },
+          { key: 'eleve', label: 'Par élève', icon: <User size={16} /> },
+          ...(role === 'fondateur' ? [{ key: 'parametres', label: 'Paramètres', icon: <Settings size={16} /> }] : [])
+        ].map(t => (
+          <button key={t.key} className={`pill-tab ${onglet === t.key ? 'active' : ''}`} onClick={() => setOnglet(t.key)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {t.icon} <span>{t.label}</span>
+          </button>
         ))}
       </div>
 
@@ -111,8 +121,11 @@ export default function PaiementsPage() {
       {onglet === 'liste' && (
         <div className="card">
           <div className="card-header">
-            <input className="form-control" placeholder="🔍 Rechercher..." value={search}
-              onChange={e => setSearch(e.target.value)} style={{ maxWidth: 260 }}/>
+            <div style={{ position: 'relative' }}>
+              <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--gray-500)' }} />
+              <input className="form-control" placeholder="Rechercher..." value={search}
+                onChange={e => setSearch(e.target.value)} style={{ maxWidth: 260, paddingLeft: 36 }}/>
+            </div>
             {peutModifier && (
               <button className="btn btn-primary" onClick={() => openPaiement('')}>+ Enregistrer un paiement</button>
             )}
@@ -135,7 +148,7 @@ export default function PaiementsPage() {
                     <td>{p.date}</td>
                     <td><span className={`badge ${p.statut === 'payé' ? 'badge-success' : 'badge-warning'}`}>{p.statut}</span></td>
                     <td>
-                      <button className="btn btn-ghost btn-sm" onClick={() => printRecu(p)}>🖨️ Reçu</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => printRecu(p)} style={{ display: 'flex', gap: 6, alignItems: 'center' }}><Printer size={14} /> Reçu</button>
                     </td>
                   </tr>
                 ))}
@@ -188,7 +201,7 @@ export default function PaiementsPage() {
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <strong style={{ color: 'var(--success)' }}>{p.montant.toLocaleString('fr')} FCFA</strong>
                             <span className="badge badge-success" style={{ fontSize: 10 }}>{p.statut}</span>
-                            <button className="btn btn-ghost btn-sm" style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => printRecu(p)}>🖨️</button>
+                            <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', display: 'flex', alignItems: 'center' }} onClick={() => printRecu(p)}><Printer size={14} /></button>
                           </div>
                         </div>
                       ))}
@@ -204,7 +217,7 @@ export default function PaiementsPage() {
       {/* PARAMÈTRES FRAIS */}
       {onglet === 'parametres' && role === 'fondateur' && (
         <div className="card">
-          <div className="card-header"><h3 style={{ fontSize: 16, fontWeight: 700 }}>⚙️ Paramétrage des frais scolaires</h3></div>
+          <div className="card-header"><h3 style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}><Settings size={18} /> Paramétrage des frais scolaires</h3></div>
           <div className="card-body">
             <div style={styles.formGrid}>
               <div className="form-group">
@@ -248,7 +261,7 @@ export default function PaiementsPage() {
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700 }}>💰 Enregistrer un paiement</h2>
+              <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}><Banknote size={20} /> Enregistrer un paiement</h2>
               <button className="btn btn-ghost btn-icon" onClick={() => setModal(null)}>✕</button>
             </div>
             <div className="modal-body">
@@ -304,9 +317,9 @@ export default function PaiementsPage() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setModal(null)}>Annuler</button>
-              <button className="btn btn-primary" onClick={savePaiement} disabled={!selectedEleve || !formPay.montant}>
-                ✅ Enregistrer
+              <button className="btn btn-cancel" onClick={() => setModal(null)}>Annuler</button>
+              <button className="btn btn-primary" onClick={savePaiement} disabled={!selectedEleve || !formPay.montant} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Check size={16} /> Enregistrer
               </button>
             </div>
           </div>

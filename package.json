@@ -23,9 +23,9 @@
     "vite": "^4.5.0"
   },
   "scripts": {
-    "dev": "/media/dilan/DATA/claude/node-v18.20.2-linux-x64/bin/node node_modules/.bin/vite",
-    "build": "/media/dilan/DATA/claude/node-v18.20.2-linux-x64/bin/node node_modules/.bin/vite build",
-    "preview": "/media/dilan/DATA/claude/node-v18.20.2-linux-x64/bin/node node_modules/.bin/vite preview"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "browserslist": {
     "production": [

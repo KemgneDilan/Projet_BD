@@ -1,94 +1,176 @@
+/**
+ * @file LoginPage.jsx
+ * @description Page de connexion avec animation de fond (symboles scolaires),
+ * design responsive mobile, et support FR/EN.
+ */
 import React, { useState } from 'react';
 import { useApp } from './AppContext';
+import T from './src/i18n/translations';
+
+/* Symboles flottants pour l'animation de fond (remplacement emojis par formes) */
+const BG_SYMBOLS = [
+  /* Formes géométriques — visibilité renforcée */
+  { symbol:'◆', style:{ top:'8%',  left:'5%',  fontSize:24, color:'rgba(243,156,18,.45)', animation:'drift1 12s ease-in-out infinite' } },
+  { symbol:'●', style:{ top:'15%', left:'25%', fontSize:18, color:'rgba(41,128,185,.5)', animation:'drift2 15s ease-in-out infinite' } },
+  { symbol:'▲', style:{ top:'35%', left:'8%',  fontSize:20, color:'rgba(255,255,255,.35)', animation:'drift3 18s ease-in-out infinite' } },
+  { symbol:'■', style:{ top:'55%', left:'18%', fontSize:16, color:'rgba(243,156,18,.55)', animation:'drift4 14s ease-in-out infinite' } },
+  { symbol:'◆', style:{ top:'70%', left:'5%',  fontSize:22, color:'rgba(41,128,185,.4)', animation:'drift1 16s ease-in-out infinite reverse' } },
+  { symbol:'●', style:{ top:'85%', left:'22%', fontSize:30, color:'rgba(255,255,255,.25)', animation:'drift2 20s ease-in-out infinite' } },
+  { symbol:'▲', style:{ top:'10%', left:'45%', fontSize:24, color:'rgba(243,156,18,.5)', animation:'drift5 13s ease-in-out infinite' } },
+  { symbol:'■', style:{ top:'40%', left:'40%', fontSize:20, color:'rgba(41,128,185,.4)', animation:'drift3 17s ease-in-out infinite reverse' } },
+  { symbol:'◆', style:{ top:'65%', left:'38%', fontSize:18, color:'rgba(255,255,255,.3)', animation:'drift4 19s ease-in-out infinite' } },
+  { symbol:'●', style:{ top:'80%', left:'48%', fontSize:24, color:'rgba(243,156,18,.45)', animation:'drift1 11s ease-in-out infinite' } },
+  { symbol:'◆', style:{ top:'20%', left:'12%', fontSize:16, color:'rgba(243,156,18,.55)', animation:'drift2 22s ease-in-out infinite' } },
+  { symbol:'●', style:{ top:'50%', left:'30%', fontSize:12, color:'rgba(41,128,185,.5)', animation:'drift5 25s ease-in-out infinite reverse' } },
+  { symbol:'▲', style:{ top:'75%', left:'12%', fontSize:14, color:'rgba(243,156,18,.5)', animation:'drift3 20s ease-in-out infinite' } },
+  { symbol:'■', style:{ top:'30%', left:'50%', fontSize:10, color:'rgba(255,255,255,.35)', animation:'drift4 28s ease-in-out infinite' } },
+];
+
+import { Moon, Sun, Lock, GraduationCap } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login } = useApp();
-  const [email, setEmail] = useState('');
-  const [mdp, setMdp] = useState('');
-  const [err, setErr] = useState('');
+  const { login, langue, toggleLangue, darkMode, toggleDarkMode, schoolSettings } = useApp();
+  const t = T[langue] || T.fr;
+
+  const [email,   setEmail]   = useState('');
+  const [mdp,     setMdp]     = useState('');
+  const [err,     setErr]     = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setErr(''); setLoading(true);
     await new Promise(r => setTimeout(r, 600));
-    if (!login(email, mdp)) setErr('Email ou mot de passe incorrect');
+    const ok = await login(email, mdp);
+    if (!ok) setErr(t.erreurConnexion);
     setLoading(false);
   };
 
   const comptes = [
-    { label: 'Fondateur', email: 'fondateur@ecole.cm', color: '#F39C12' },
-    { label: 'Directeur', email: 'directeur@ecole.cm', color: '#1B4F72' },
-    { label: 'Enseignant', email: 'enseignant@ecole.cm', color: '#27AE60' },
-    { label: 'Parent', email: 'parent@ecole.cm', color: '#8E44AD' },
+    { label:'Administrateur', email:'admin@ecole.cm', color:'#E74C3C', mdp: 'root' },
+    { label:'Fondateur', email:'fondateur@ecole.cm', color:'#F39C12' },
+    { label:'Directeur', email:'directeur@ecole.cm', color:'#27AE60' },
+    { label:'Enseignant', email:'enseignant@ecole.cm', color:'#60A5FA' },
+    { label:'Parent', email:'parent@ecole.cm', color:'#C084FC' },
   ];
 
   return (
-    <div style={styles.page}>
-      {/* Décor gauche */}
-      <div style={styles.left}>
+    <div style={styles.page} className="login-layout">
+      {/* Fond animé avec symboles scolaires */}
+      <div style={styles.bgLayer} aria-hidden="true">
+        {BG_SYMBOLS.map((s, i) => (
+          <span key={i} style={{ ...styles.bgSymbol, ...s.style }}>{s.symbol}</span>
+        ))}
+        {/* Cercles décoratifs */}
+        <div style={{ ...styles.decorCircle, width:300, height:300, top:'-10%', right:'-5%', opacity:.06 }} />
+        <div style={{ ...styles.decorCircle, width:200, height:200, bottom:'10%', left:'5%', opacity:.04 }} />
+        <div style={{ ...styles.decorCircle, width:150, height:150, top:'40%', left:'35%', opacity:.03 }} />
+      </div>
+
+      {/* Panneau gauche — sélecteur de compte démo */}
+      <div style={styles.left} className="login-left">
         <div style={styles.leftInner}>
-          <div style={styles.logo}>
-            <span style={styles.logoIcon}>🎓</span>
-          </div>
-          <h1 style={styles.schoolName}>École Les Étoiles</h1>
-          <p style={styles.schoolSub}>Primaire & Maternelle — Douala, Cameroun</p>
-
-          <div style={styles.features}>
-            {['Gestion des élèves & classes', 'Bulletins & évaluations', 'Suivi des paiements', 'Transport scolaire', 'Espace parents'].map((f, i) => (
-              <div key={i} style={styles.featureItem}>
-                <span style={styles.featureDot}/>
-                <span>{f}</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={styles.demoLabel}>Comptes de démonstration</div>
+          <div style={{ ...styles.demoLabel, marginBottom:24 }}>{t.comptesDemo}</div>
           <div style={styles.demoGrid}>
             {comptes.map(c => (
-              <button key={c.email} style={{ ...styles.demoBtn, borderColor: c.color }}
-                onClick={() => { setEmail(c.email); setMdp('1234'); }}>
-                <span style={{ color: c.color, fontWeight: 700, fontSize: 12 }}>{c.label}</span>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,.5)' }}>{c.email}</span>
+              <button
+                key={c.email}
+                style={{ ...styles.demoBtn, borderColor: c.color + '55' }}
+                onClick={() => { setEmail(c.email); setMdp(c.mdp || '1234'); }}
+              >
+                <span style={{ color: c.color, fontWeight:700, fontSize:12 }}>{c.label}</span>
+                <span style={{ fontSize:10, color:'rgba(255,255,255,.45)' }}>{c.email}</span>
               </button>
             ))}
+          </div>
+
+          <div style={{ marginTop:40 }}>
+            <div style={styles.logoWrap}>
+              <img
+                src="./src/data/logo_ecole.png"
+                alt={`Logo ${schoolSettings?.nom || 'École'}`}
+                style={styles.logoImg}
+                onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
+              />
+              <div style={{ ...styles.logoFallback, display:'none' }}><GraduationCap size={40} color="#F39C12" /></div>
+            </div>
+            <h1 style={styles.schoolName}>{schoolSettings?.nom || 'École Les Étoiles'}</h1>
+            <p style={styles.schoolSub}>
+              {langue === 'fr'
+                ? schoolSettings?.sousTitreFR || 'Primaire & Maternelle — Yaoundé, Cameroun'
+                : schoolSettings?.sousTitreEN || 'Primary & Nursery School — Yaoundé, Cameroon'}
+            </p>
+
+            <div style={styles.features}>
+              {(langue === 'fr'
+                ? ['Gestion des élèves & classes', 'Bulletins & évaluations', 'Suivi des paiements', 'Transport scolaire', 'Messagerie intégrée']
+                : ['Student & class management', 'Report cards & evaluations', 'Payment tracking', 'School transport', 'Integrated messaging']
+              ).map((f, i) => (
+                <div key={i} style={styles.featureItem}>
+                  <span style={styles.featureDot} />
+                  <span>{f}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Formulaire droit */}
-      <div style={styles.right}>
-        <div style={styles.card}>
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div style={styles.cardIcon}>🔐</div>
-            <h2 style={styles.cardTitle}>Connexion</h2>
-            <p style={styles.cardSub}>Bienvenue! Connectez-vous à votre espace.</p>
+      {/* Panneau droit — formulaire de connexion */}
+      <div style={styles.right} className="login-right">
+        {/* Boutons langue + dark mode en haut */}
+        <div style={styles.topControls}>
+          <button style={styles.ctrlBtn} onClick={toggleLangue}>
+            <span style={{ fontSize:10, fontWeight:700 }}>
+              {langue === 'fr' ? 'EN' : 'FR'}
+            </span>
+          </button>
+          <button style={styles.ctrlBtn} onClick={toggleDarkMode}>
+            {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+        </div>
+
+        <div style={styles.card} className="login-card">
+          <div style={{ textAlign:'center', marginBottom:32 }}>
+            <div style={{ ...styles.cardIcon, display: 'flex', justifyContent: 'center' }}><Lock size={36} color="#0D2B40" /></div>
+            <h2 style={styles.cardTitle}>{t.connexion}</h2>
+            <p style={styles.cardSub}>{t.connectezVous}</p>
           </div>
 
           <form onSubmit={handleLogin}>
             <div className="form-group">
-              <label className="form-label">Adresse email</label>
-              <input className="form-control" type="email" value={email}
-                onChange={e => setEmail(e.target.value)} placeholder="votre@email.cm" required/>
+              <label className="form-label">{t.email}</label>
+              <input
+                className="form-control" type="email"
+                value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="votre@email.cm" required
+              />
             </div>
             <div className="form-group">
-              <label className="form-label">Mot de passe</label>
-              <input className="form-control" type="password" value={mdp}
-                onChange={e => setMdp(e.target.value)} placeholder="••••••••" required/>
+              <label className="form-label">{t.motDePasse}</label>
+              <input
+                className="form-control" type="password"
+                value={mdp} onChange={e => setMdp(e.target.value)}
+                placeholder="••••••••" required
+              />
             </div>
 
-            {err && (
-              <div style={styles.errBox}>{err}</div>
-            )}
+            {err && <div style={styles.errBox}>{err}</div>}
 
-            <button className="btn btn-primary w-full btn-lg" type="submit" disabled={loading}
-              style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}>
-              {loading ? <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }}/> : '→ Se connecter'}
+            <button
+              className="btn btn-primary btn-xl w-full"
+              type="submit" disabled={loading}
+              style={{ justifyContent:'center', marginTop:8 }}
+            >
+              {loading
+                ? <span className="spinner" style={{ width:18, height:18, borderWidth:2 }} />
+                : t.seConnecter
+              }
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--gray-400)', marginTop: 24 }}>
-            Mot de passe de démonstration: <strong>1234</strong>
+          <p style={{ textAlign:'center', fontSize:12, color:'var(--text-muted)', marginTop:24 }}>
+            {t.mdpDemo}: <strong style={{ color:'var(--primary)' }}>1234</strong>
           </p>
         </div>
       </div>
@@ -98,53 +180,79 @@ export default function LoginPage() {
 
 const styles = {
   page: {
-    minHeight: '100vh', display: 'flex',
-    background: 'linear-gradient(135deg, #0D2B40 0%, #1B4F72 60%, #2980B9 100%)',
+    minHeight:'100vh', display:'flex',
+    background:'linear-gradient(135deg, #0D2B40 0%, #1B4F72 55%, #2471A3 100%)',
+    position:'relative', overflow:'hidden',
+  },
+  bgLayer: {
+    position:'absolute', inset:0, pointerEvents:'none', zIndex:0, overflow:'hidden',
+  },
+  bgSymbol: {
+    position:'absolute', userSelect:'none', opacity:.45, filter:'blur(.3px)',
+    transition:'transform 0.3s',
+  },
+  decorCircle: {
+    position:'absolute', borderRadius:'50%',
+    border:'2px solid rgba(243,156,18,.55)',
   },
   left: {
-    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '60px 40px',
+    flex:1, display:'flex', alignItems:'center', justifyContent:'center',
+    padding:'60px 50px', position:'relative', zIndex:1,
   },
-  leftInner: { maxWidth: 420, width: '100%' },
-  logo: {
-    width: 72, height: 72, borderRadius: '50%',
-    background: 'rgba(243,156,18,.15)', border: '2px solid rgba(243,156,18,.3)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 32, marginBottom: 20,
+  leftInner: { maxWidth:480, width:'100%' },
+  logoWrap:  {
+    width:96, height:96, borderRadius:'50%', overflow:'hidden',
+    marginBottom:24, border:'3px solid rgba(243,156,18,.4)',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    background:'rgba(255,255,255,.1)',
   },
-  logoIcon: {},
+  logoImg:      { width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' },
+  logoFallback: { fontSize:40, alignItems:'center', justifyContent:'center' },
   schoolName: {
-    fontFamily: 'Playfair Display, serif',
-    fontSize: 34, fontWeight: 900, color: 'white',
-    lineHeight: 1.1, marginBottom: 8,
+    fontFamily:'Playfair Display, serif',
+    fontSize:34, fontWeight:900, color:'white',
+    lineHeight:1.1, marginBottom:8,
   },
-  schoolSub: { fontSize: 14, color: 'rgba(255,255,255,.55)', marginBottom: 40 },
-  features: { display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 40 },
-  featureItem: { display: 'flex', alignItems: 'center', gap: 12, color: 'rgba(255,255,255,.8)', fontSize: 14 },
-  featureDot: { width: 6, height: 6, borderRadius: '50%', background: '#F39C12', flexShrink: 0 },
-  demoLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', marginBottom: 12 },
-  demoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
+  schoolSub:   { fontSize:14, color:'rgba(255,255,255,.55)', marginBottom:36 },
+  features:    { display:'flex', flexDirection:'column', gap:11, marginBottom:36 },
+  featureItem: { display:'flex', alignItems:'center', gap:12, color:'rgba(255,255,255,.8)', fontSize:14 },
+  featureDot:  { width:6, height:6, borderRadius:'50%', background:'#F39C12', flexShrink:0 },
+  demoLabel:   { fontSize:11, fontWeight:700, letterSpacing:1, color:'rgba(255,255,255,.4)', textTransform:'uppercase', marginBottom:12 },
+  demoGrid:    { display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 },
   demoBtn: {
-    background: 'rgba(255,255,255,.06)', border: '1px solid',
-    borderRadius: 10, padding: '10px 14px', cursor: 'pointer',
-    display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'left',
-    transition: 'all .2s',
+    background:'rgba(255,255,255,.06)', border:'1px solid',
+    borderRadius:10, padding:'10px 14px', cursor:'pointer',
+    display:'flex', flexDirection:'column', gap:3, textAlign:'left',
+    transition:'all .2s',
   },
   right: {
-    width: 460, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: 40, background: 'rgba(255,255,255,.04)',
-    backdropFilter: 'blur(20px)',
+    width:480, display:'flex', flexDirection:'column',
+    alignItems:'center', justifyContent:'center',
+    padding:40, background:'rgba(255,255,255,.04)',
+    backdropFilter:'blur(20px)', position:'relative', zIndex:1,
+  },
+  topControls: {
+    position:'absolute', top:20, right:20,
+    display:'flex', gap:8,
+  },
+  ctrlBtn: {
+    width:36, height:36, borderRadius:10,
+    background:'rgba(255,255,255,.1)',
+    border:'1px solid rgba(255,255,255,.2)',
+    color:'white', cursor:'pointer', fontSize:14,
+    display:'flex', alignItems:'center', justifyContent:'center',
+    transition:'all .2s',
   },
   card: {
-    background: 'white', borderRadius: 24, padding: '40px 36px',
-    boxShadow: '0 25px 80px rgba(0,0,0,.3)', width: '100%', maxWidth: 380,
+    background:'white', borderRadius:24, padding:'40px 36px',
+    boxShadow:'0 25px 80px rgba(0,0,0,.3)', width:'100%', maxWidth:400,
   },
-  cardIcon: { fontSize: 36, marginBottom: 12 },
-  cardTitle: { fontFamily: 'Playfair Display, serif', fontSize: 26, fontWeight: 700, color: '#0D2B40' },
-  cardSub: { fontSize: 14, color: '#64748B', marginTop: 6 },
+  cardIcon:  { fontSize:36, marginBottom:12 },
+  cardTitle: { fontFamily:'Playfair Display, serif', fontSize:26, fontWeight:700, color:'#0D2B40' },
+  cardSub:   { fontSize:14, color:'#64748B', marginTop:6 },
   errBox: {
-    background: '#FEE2E2', color: '#991B1B',
-    padding: '10px 14px', borderRadius: 8,
-    fontSize: 13, marginBottom: 12,
+    background:'#FEE2E2', color:'#991B1B',
+    padding:'10px 14px', borderRadius:8,
+    fontSize:13, marginBottom:12, border:'1px solid #FECACA',
   },
 };

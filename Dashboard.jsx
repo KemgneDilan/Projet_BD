@@ -1,40 +1,32 @@
+/**
+ * @file Dashboard.jsx
+ * @description Tableau de bord adapté par rôle.
+ * - Fondateur / Directeur : stats globales + graphiques
+ * - Enseignant : stats de ses classes avec liens cliquables
+ * - Parent : suivi de ses enfants
+ */
 import React from 'react';
-import PropTypes from 'prop-types';
 import { useApp } from './AppContext';
+import T from './src/i18n/translations';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import './global.css';
+import { Users, FileText, CreditCard, Bus, School, UserCircle } from 'lucide-react';
 
-const COLORS = ['#1B4F72', '#2980B9', '#F39C12', '#27AE60', '#E74C3C', '#8E44AD'];
+const COLORS = ['#1B4F72','#2980B9','#F39C12','#27AE60','#E74C3C','#8E44AD'];
 
-// Composant réutilisable pour les cartes de statistiques
 const StatCard = ({ icon, label, value, color, sub, onClick }) => (
   <div
     className="stat-card"
     onClick={onClick}
-    role="button"
+    role={onClick ? 'button' : undefined}
     tabIndex={onClick ? 0 : -1}
-    onKeyDown={(e) => {
-      if (onClick && (e.key === 'Enter' || e.key === ' ')) {
-        onClick();
-      }
-    }}
+    onKeyDown={e => onClick && (e.key === 'Enter' || e.key === ' ') && onClick()}
     style={{ cursor: onClick ? 'pointer' : 'default' }}
   >
-    <div className="stat-icon" style={{ background: `${color}18` }}>
-      <span aria-hidden="true" style={{ fontSize: 24 }}>
-        {icon}
-      </span>
+    <div className="stat-icon" style={{ background:`${color}18` }}>
+      <span style={{ fontSize:24 }}>{icon}</span>
     </div>
     <div>
       <div className="stat-value">{value}</div>
@@ -44,412 +36,186 @@ const StatCard = ({ icon, label, value, color, sub, onClick }) => (
   </div>
 );
 
-StatCard.propTypes = {
-  icon: PropTypes.string.isRequired,
-  label: PropTypes.string.isRequired,
-  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-  color: PropTypes.string.isRequired,
-  sub: PropTypes.string,
-  onClick: PropTypes.func,
-};
+/* ── Dashboard Parent ────────────────────────────────────────────── */
+function ParentDashboard() {
+  const { utilisateurActif, eleves, classes, notes, paiements, getMoyenne, langue, naviguer } = useApp();
+  const t = T[langue] || T.fr;
 
-StatCard.defaultProps = {
-  sub: null,
-  onClick: null,
-};
-
-// Composant pour afficher les enfants d'un parent
-const EnfantCard = ({ enfant, classes, notes, getMoyenne }) => {
-  if (!enfant) {
-    return null;
-  }
-
-  const bulletins = notes.filter((n) => n.eleveId === enfant.id);
-  const classInfo = classes.find((c) => c.id === enfant.classeId);
+  const mesEnfants = eleves.filter(e => e.statut === 'actif' && e.parentEmail === utilisateurActif?.email);
+  const bulletinsCount = notes.filter(n => mesEnfants.some(e => e.id === n.eleveId)).length;
+  const paiementsCount = paiements.filter(p => mesEnfants.some(e => e.id === p.eleveId)).length;
 
   return (
-    <div key={enfant.id} className="card card-enfant">
-      <div className="card-header">
-        <div className="enfant-info">
-          <div className="enfant-avatar">{enfant.prenom[0]}</div>
-          <div>
-            <h3 className="enfant-name">
-              {enfant.prenom} {enfant.nom}
-            </h3>
-            <span className="badge badge-primary">
-              {classInfo?.nom} — {enfant.section}
-            </span>
-          </div>
-        </div>
-        <span className="badge badge-success">{enfant.statut}</span>
-      </div>
-      <div className="card-body">
-        <div className="info-grid">
-          <div className="info-item">
-            <span className="info-label">Matricule</span>
-            <span>{enfant.matricule}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Bus scolaire</span>
-            <span>{enfant.bus ? `🚌 Oui — ${enfant.busLigne}` : 'Non'}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Bulletins</span>
-            <span>{bulletins.length} disponible(s)</span>
-          </div>
-          {bulletins[0] && (
-            <div className="info-item">
-              <span className="info-label">Dernière moyenne</span>
-              <span className="moyenne-badge">
-                {getMoyenne(bulletins[0])}/20
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-EnfantCard.propTypes = {
-  enfant: PropTypes.shape({
-    id: PropTypes.string.isRequired,
-    prenom: PropTypes.string.isRequired,
-    nom: PropTypes.string.isRequired,
-    matricule: PropTypes.string.isRequired,
-    section: PropTypes.string.isRequired,
-    statut: PropTypes.string.isRequired,
-    bus: PropTypes.bool,
-    busLigne: PropTypes.string,
-    classeId: PropTypes.string,
-  }).isRequired,
-  classes: PropTypes.arrayOf(PropTypes.object).isRequired,
-  notes: PropTypes.arrayOf(PropTypes.object).isRequired,
-  getMoyenne: PropTypes.func.isRequired,
-};
-
-EnfantCard.defaultProps = {};
-
-// Dashboard Parent
-const ParentDashboard = ({
-  utilisateurActif,
-  eleves,
-  classes,
-  notes,
-  paiements,
-  getMoyenne,
-}) => {
-  if (!utilisateurActif) {
-    return null;
-  }
-
-  const mesEnfants = eleves.filter(
-    (e) =>
-      e.statut === 'actif' && e.parentEmail === utilisateurActif.email
-  );
-
-  const bulletinsCount = notes.filter((n) =>
-    mesEnfants.some((e) => e.id === n.eleveId)
-  ).length;
-
-  const paiementsCount = paiements.filter((p) =>
-    mesEnfants.some((e) => e.id === p.eleveId)
-  ).length;
-
-  return (
-    <div className="dashboard-container">
-      <div className="welcome-box">
-        <div>
-          <h2 className="welcome-title">
-            Bonjour, {utilisateurActif.prenom} 👋
-          </h2>
-          <p className="welcome-sub">
-            Voici le suivi scolaire de vos enfants.
-          </p>
-        </div>
+    <div style={S.container}>
+      <div style={S.welcomeBox}>
+        <h2 style={S.welcomeTitle}>{t.bonjour} {utilisateurActif?.prenom} 👋</h2>
+        <p style={S.welcomeSub}>{t.suiviScolaire}</p>
       </div>
 
-      <div className="stats-grid">
-        <StatCard
-          icon="👦"
-          label="Enfants scolarisés"
-          value={mesEnfants.length}
-          color="#1B4F72"
-        />
-        <StatCard
-          icon="📋"
-          label="Bulletins disponibles"
-          value={bulletinsCount}
-          color="#27AE60"
-        />
-        <StatCard
-          icon="💰"
-          label="Paiements effectués"
-          value={paiementsCount}
-          color="#F39C12"
-        />
+      <div style={{ ...S.statsGrid, gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))' }}>
+        <StatCard icon={<Users size={24} />} label={t.enfantsScolarises} value={mesEnfants.length} color="#1B4F72" />
+        <StatCard icon={<FileText size={24} />} label={t.bulletinsDisponibles} value={bulletinsCount} color="#27AE60" onClick={() => naviguer('bulletins')} />
+        <StatCard icon={<CreditCard size={24} />} label={t.paiementsEffectues} value={paiementsCount} color="#F39C12" onClick={() => naviguer('paiements')} />
       </div>
 
-      {mesEnfants.length > 0 ? (
-        <div className="enfants-list">
-          {mesEnfants.map((enfant) => (
-            <EnfantCard
-              key={enfant.id}
-              enfant={enfant}
-              classes={classes}
-              notes={notes}
-              getMoyenne={getMoyenne}
-            />
-          ))}
+      {mesEnfants.length === 0 ? (
+        <div className="empty-state">
+          <UserCircle size={52} color="var(--text-muted)" />
+          <h3>{t.aucunEnfant}</h3>
+          <p>{t.contactezDirection}</p>
         </div>
       ) : (
-        <div className="empty-state">
-          <span className="empty-icon">👨‍👩‍👧</span>
-          <h3>Aucun enfant inscrit</h3>
-          <p>Contactez la direction pour l'inscription.</p>
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {mesEnfants.map(enfant => {
+            const cl = classes.find(c => c.id === enfant.classeId);
+            const buls = notes.filter(n => n.eleveId === enfant.id);
+            const dernierBul = buls[0];
+            return (
+              <div key={enfant.id} className="card animate-fade">
+                <div className="card-header">
+                  <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+                    <div style={S.enfantAvatar}>{enfant.prenom[0]}</div>
+                    <div>
+                      <h3 style={{ fontSize:16, fontWeight:700, color:'var(--text-primary)' }}>
+                        {enfant.prenom} {enfant.nom}
+                      </h3>
+                      <span className="badge badge-primary">{cl?.nom} — {enfant.section}</span>
+                    </div>
+                  </div>
+                  <span className="badge badge-success">{enfant.statut}</span>
+                </div>
+                <div className="card-body">
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                    {[
+                      ['Matricule', enfant.matricule],
+                      ['Bus scolaire', enfant.bus ? `🚌 ${enfant.busLigne}` : 'Non'],
+                      ['Bulletins', `${buls.length} disponible(s)`],
+                      dernierBul ? ['Dernière moyenne', `${getMoyenne(dernierBul)}/20`] : null,
+                    ].filter(Boolean).map(([label, val]) => (
+                      <div key={label} style={S.infoItem}>
+                        <span style={S.infoLabel}>{label}</span>
+                        <span style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)' }}>{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
-};
+}
 
-ParentDashboard.propTypes = {
-  utilisateurActif: PropTypes.shape({
-    prenom: PropTypes.string.isRequired,
-    email: PropTypes.string.isRequired,
-  }),
-  eleves: PropTypes.arrayOf(PropTypes.object).isRequired,
-  classes: PropTypes.arrayOf(PropTypes.object).isRequired,
-  notes: PropTypes.arrayOf(PropTypes.object).isRequired,
-  paiements: PropTypes.arrayOf(PropTypes.object).isRequired,
-  getMoyenne: PropTypes.func.isRequired,
-};
+/* ── Dashboard Enseignant ─────────────────────────────────────────── */
+function TeacherDashboard() {
+  const { utilisateurActif, eleves, classes, notes, langue, naviguer } = useApp();
+  const t = T[langue] || T.fr;
 
-ParentDashboard.defaultProps = {
-  utilisateurActif: null,
-};
+  const mesClassesIds = utilisateurActif?.classesIds?.length
+    ? utilisateurActif.classesIds
+    : [utilisateurActif?.classeId].filter(Boolean);
 
-// Dashboard Enseignant
-const TeacherDashboard = ({
-  utilisateurActif,
-  eleves,
-  classes,
-  notes,
-}) => {
-  if (!utilisateurActif) {
-    return null;
-  }
-
-  const maClasse = classes.find((c) => c.id === utilisateurActif.classeId);
-  const mesEleves = maClasse
-    ? eleves.filter((e) => e.classeId === maClasse.id && e.statut === 'actif')
-    : [];
-
-  const bulletinsCount = notes.filter((n) =>
-    mesEleves.some((e) => e.id === n.eleveId)
-  ).length;
-
-  const busCount = mesEleves.filter((e) => e.bus).length;
+  const mesEleves = eleves.filter(e => mesClassesIds.includes(e.classeId) && e.statut === 'actif');
+  const bulletinsCount = notes.filter(n => mesEleves.some(e => e.id === n.eleveId)).length;
+  const busCount = mesEleves.filter(e => e.bus).length;
+  const mesClasses = classes.filter(c => mesClassesIds.includes(c.id));
 
   return (
-    <div className="dashboard-container">
-      <div className="welcome-box">
-        <h2 className="welcome-title">Bonjour, {utilisateurActif.prenom} 👋</h2>
-        <p className="welcome-sub">
-          {maClasse
-            ? `Classe : ${maClasse.nom}`
-            : 'Aucune classe assignée'}
+    <div style={S.container}>
+      <div style={S.welcomeBox}>
+        <h2 style={S.welcomeTitle}>{t.bonjour} {utilisateurActif?.prenom} 👋</h2>
+        <p style={S.welcomeSub}>
+          {mesClasses.length > 0
+            ? `${t.classeAssignee} ${mesClasses.map(c => c.nom).join(', ')}`
+            : t.aucuneClasse}
         </p>
       </div>
 
-      <div className="stats-grid">
-        <StatCard
-          icon="👦"
-          label="Mes élèves"
-          value={mesEleves.length}
-          color="#1B4F72"
-        />
-        <StatCard
-          icon="📋"
-          label="Bulletins saisis"
-          value={bulletinsCount}
-          color="#27AE60"
-        />
-        <StatCard
-          icon="🚌"
-          label="Élèves en bus"
-          value={busCount}
-          color="#F39C12"
-        />
+      <div style={S.statsGrid}>
+        <StatCard icon={<Users size={24} />} label={t.mesEleves} value={mesEleves.length} color="#1B4F72"
+          onClick={() => naviguer('eleves')} />
+        <StatCard icon={<FileText size={24} />} label={t.bulletinsSaisis} value={bulletinsCount} color="#27AE60"
+          onClick={() => naviguer('bulletins')} />
+        <StatCard icon={<Bus size={24} />} label={t.elevesEnBus} value={busCount} color="#F39C12" onClick={() => naviguer('transport')} />
       </div>
     </div>
   );
-};
+}
 
-TeacherDashboard.propTypes = {
-  utilisateurActif: PropTypes.shape({
-    prenom: PropTypes.string.isRequired,
-    classeId: PropTypes.string,
-  }),
-  eleves: PropTypes.arrayOf(PropTypes.object).isRequired,
-  classes: PropTypes.arrayOf(PropTypes.object).isRequired,
-  notes: PropTypes.arrayOf(PropTypes.object).isRequired,
-};
+/* ── Dashboard Admin / Fondateur / Directeur ──────────────────────── */
+function AdminDashboard() {
+  const { utilisateurActif, eleves, classes, paiements, notes, getMoyenne, langue, naviguer } = useApp();
+  const t = T[langue] || T.fr;
 
-TeacherDashboard.defaultProps = {
-  utilisateurActif: null,
-};
-
-// Dashboard Admin
-const AdminDashboard = ({
-  utilisateurActif,
-  setPage,
-  eleves,
-  classes,
-  paiements,
-  notes,
-  getMoyenne,
-}) => {
-  if (!utilisateurActif || typeof setPage !== 'function') {
-    return null;
-  }
-
-  const actifs = eleves.filter((e) => e.statut === 'actif');
+  const actifs = eleves.filter(e => e.statut === 'actif');
+  const totalPaye = paiements.filter(p => p.statut === 'payé').reduce((s, p) => s + (p.montant||0), 0);
+  const busEleves = actifs.filter(e => e.bus).length;
 
   const elevesParSection = [
-    {
-      name: 'Francophone',
-      value: actifs.filter((e) => e.section === 'francophone').length,
-    },
-    {
-      name: 'Anglophone',
-      value: actifs.filter((e) => e.section === 'anglophone').length,
-    },
-    {
-      name: 'Bilingue',
-      value: actifs.filter((e) => e.section === 'bilingue').length,
-    },
+    { name:'Francophone', value: actifs.filter(e => e.section === 'francophone').length },
+    { name:'Anglophone',  value: actifs.filter(e => e.section === 'anglophone').length },
+    { name:'Bilingue',    value: actifs.filter(e => e.section === 'bilingue').length },
   ];
-
   const elevesParNiveau = classes
-    .map((c) => ({
-      name: c.niveau,
-      eleves: eleves.filter(
-        (e) => e.classeId === c.id && e.statut === 'actif'
-      ).length,
-    }))
-    .filter((c) => c.eleves > 0);
+    .map(c => ({ name:c.niveau, eleves: eleves.filter(e => e.classeId === c.id && e.statut === 'actif').length }))
+    .filter(c => c.eleves > 0);
 
-  const totalPaye = paiements
-    .filter((p) => p.statut === 'payé')
-    .reduce((sum, p) => sum + (p.montant || 0), 0);
-
-  const busEleves = actifs.filter((e) => e.bus).length;
-
-  const derniersPaiements = paiements.slice(-5).reverse();
+  const derniersPaiements = [...paiements].reverse().slice(0, 5);
 
   return (
-    <div className="dashboard-container">
-      <div className="welcome-box welcome-box-admin">
+    <div style={S.container}>
+      <div style={{ ...S.welcomeBox, background:'linear-gradient(135deg,#0D2B40,#1B4F72)', borderRadius:16, padding:'28px 32px' }}>
         <div>
-          <h2 className="welcome-title">
-            Bienvenue, {utilisateurActif.prenom} 🎉
+          <h2 style={{ ...S.welcomeTitle, color:'white' }}>
+            {t.bienvenue?.replace('!','')} {utilisateurActif?.prenom}! 🎉
           </h2>
-          <p className="welcome-sub">
-            Vue d'ensemble de l'École Les Étoiles — Année 2024-2025
+          <p style={{ ...S.welcomeSub, color:'rgba(255,255,255,.7)' }}>
+            {t.vueEnsemble} — {t.anneeEn} 2025-2026
           </p>
         </div>
-        <div className="welcome-actions">
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => setPage('eleves')}
-            type="button"
-          >
-            + Inscrire un élève
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginTop:8 }}>
+          <button className="btn btn-accent btn-sm" onClick={() => naviguer('eleves')}>
+            + {langue === 'fr' ? 'Inscrire un élève' : 'Enroll Student'}
           </button>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setPage('bulletins')}
-            type="button"
-          >
-            📋 Bulletins
+          <button className="btn btn-sm" style={{ background:'rgba(255,255,255,.15)', color:'white', border:'1px solid rgba(255,255,255,.2)' }}
+            onClick={() => naviguer('bulletins')}>
+            📋 {t.bulletins}
           </button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="stats-grid">
-        <StatCard
-          icon="👦"
-          label="Élèves inscrits"
-          value={actifs.length}
-          color="#1B4F72"
-          sub="Actifs"
-          onClick={() => setPage('eleves')}
-        />
-        <StatCard
-          icon="🏫"
-          label="Classes"
-          value={classes.length}
-          color="#2980B9"
-          onClick={() => setPage('classes')}
-        />
-        <StatCard
-          icon="💰"
-          label="Recettes (FCFA)"
-          value={totalPaye.toLocaleString('fr')}
-          color="#F39C12"
-          sub="Encaissé"
-          onClick={() => setPage('paiements')}
-        />
-        <StatCard
-          icon="🚌"
-          label="Élèves en bus"
-          value={busEleves}
-          color="#27AE60"
-          onClick={() => setPage('transport')}
-        />
+      <div style={S.statsGrid}>
+        <StatCard icon={<Users size={24} />} label={t.elevesInscrits} value={actifs.length} color="#1B4F72" sub="Actifs" onClick={() => naviguer('eleves')} />
+        <StatCard icon={<School size={24} />} label={t.classes} value={classes.length} color="#2980B9" onClick={() => naviguer('classes')} />
+        <StatCard icon={<CreditCard size={24} />} label={t.recettes} value={totalPaye.toLocaleString('fr')} color="#F39C12" sub="Encaissé" onClick={() => naviguer('paiements')} />
+        <StatCard icon={<Bus size={24} />} label={t.elevesEnBus} value={busEleves} color="#27AE60" onClick={() => naviguer('transport')} />
       </div>
 
-      {/* Graphiques */}
-      <div className="charts-grid">
+      <div style={S.chartsGrid}>
         <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Élèves par niveau</h3>
-          </div>
+          <div className="card-header"><h3 className="card-title">{t.elevesParNiveau}</h3></div>
           <div className="card-body">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={200}>
               <BarChart data={elevesParNiveau} barSize={32}>
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="eleves" fill="#1B4F72" radius={[6, 6, 0, 0]} />
+                <XAxis dataKey="name" tick={{ fontSize:11, fill:'var(--text-secondary)' }} />
+                <YAxis tick={{ fontSize:11, fill:'var(--text-secondary)' }} />
+                <Tooltip contentStyle={{ borderRadius:8, fontSize:13 }} />
+                <Bar dataKey="eleves" fill="#1B4F72" radius={[6,6,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Répartition par section</h3>
-          </div>
-          <div className="card-body card-body-chart">
-            <ResponsiveContainer width="100%" height={220}>
+          <div className="card-header"><h3 className="card-title">{t.repartitionSection}</h3></div>
+          <div className="card-body">
+            <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie
-                  data={elevesParSection}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  {elevesParSection.map((_, i) => (
-                    <Cell
-                      key={`cell-${i}`}
-                      fill={COLORS[i % COLORS.length]}
-                    />
-                  ))}
+                <Pie data={elevesParSection} cx="50%" cy="50%" outerRadius={70} dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                  {elevesParSection.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                 </Pie>
                 <Legend />
               </PieChart>
@@ -458,142 +224,58 @@ const AdminDashboard = ({
         </div>
       </div>
 
-      {/* Derniers paiements */}
       <div className="card">
-        <div className="card-header card-header-payments">
-          <h3 className="card-title">Derniers paiements</h3>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setPage('paiements')}
-            type="button"
-          >
-            Voir tout →
-          </button>
+        <div className="card-header">
+          <h3 className="card-title">{t.derniersPaiements}</h3>
+          <button className="btn btn-ghost btn-sm" onClick={() => naviguer('paiements')}>{t.voirTout}</button>
         </div>
         <div className="table-wrap">
-          <table className="payments-table">
+          <table>
             <thead>
               <tr>
-                <th>Reçu</th>
-                <th>Type</th>
-                <th>Montant</th>
-                <th>Date</th>
-                <th>Statut</th>
+                <th>{t.recu}</th><th>{t.type}</th>
+                <th>{t.montant}</th><th>{t.date}</th><th>{t.statut}</th>
               </tr>
             </thead>
             <tbody>
-              {derniersPaiements.length > 0 ? (
-                derniersPaiements.map((p) => (
+              {derniersPaiements.length === 0
+                ? <tr><td colSpan={5} style={{ textAlign:'center', padding:32, color:'var(--text-muted)' }}>{t.aucunPaiement}</td></tr>
+                : derniersPaiements.map(p => (
                   <tr key={p.id}>
-                    <td>
-                      <code className="receipt-code">{p.recu}</code>
-                    </td>
-                    <td className="payment-type">
-                      {p.type}
-                    </td>
-                    <td className="payment-amount">
-                      <strong>
-                        {(p.montant || 0).toLocaleString('fr')} FCFA
-                      </strong>
-                    </td>
-                    <td className="payment-date">{p.date}</td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          p.statut === 'payé'
-                            ? 'badge-success'
-                            : 'badge-warning'
-                        }`}
-                      >
-                        {p.statut}
-                      </span>
-                    </td>
+                    <td><code style={{ fontSize:11, background:'var(--gray-100)', padding:'2px 8px', borderRadius:4, color:'var(--text-primary)' }}>{p.recu}</code></td>
+                    <td style={{ textTransform:'capitalize' }}>{p.type}</td>
+                    <td><strong style={{ color:'var(--success)' }}>{(p.montant||0).toLocaleString('fr')} FCFA</strong></td>
+                    <td>{p.date}</td>
+                    <td><span className={`badge ${p.statut==='payé'?'badge-success':'badge-warning'}`}>{p.statut}</span></td>
                   </tr>
                 ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="empty-table">
-                    Aucun paiement enregistré
-                  </td>
-                </tr>
-              )}
+              }
             </tbody>
           </table>
         </div>
       </div>
     </div>
   );
-};
-
-AdminDashboard.propTypes = {
-  utilisateurActif: PropTypes.shape({
-    prenom: PropTypes.string.isRequired,
-  }),
-  setPage: PropTypes.func.isRequired,
-  eleves: PropTypes.arrayOf(PropTypes.object).isRequired,
-  classes: PropTypes.arrayOf(PropTypes.object).isRequired,
-  paiements: PropTypes.arrayOf(PropTypes.object).isRequired,
-  notes: PropTypes.arrayOf(PropTypes.object).isRequired,
-  getMoyenne: PropTypes.func.isRequired,
-};
-
-AdminDashboard.defaultProps = {
-  utilisateurActif: null,
-};
-
-// Composant principal
-export default function Dashboard({ setPage }) {
-  const { eleves, classes, paiements, utilisateurActif, notes, getMoyenne } =
-    useApp();
-
-  if (!utilisateurActif) {
-    return (
-      <div className="dashboard-container">
-        <div className="loading">Chargement...</div>
-      </div>
-    );
-  }
-
-  const role = utilisateurActif.role || 'admin';
-
-  switch (role) {
-    case 'parent':
-      return (
-        <ParentDashboard
-          utilisateurActif={utilisateurActif}
-          eleves={eleves}
-          classes={classes}
-          notes={notes}
-          paiements={paiements}
-          getMoyenne={getMoyenne}
-        />
-      );
-    case 'enseignant':
-      return (
-        <TeacherDashboard
-          utilisateurActif={utilisateurActif}
-          eleves={eleves}
-          classes={classes}
-          notes={notes}
-        />
-      );
-    default:
-      return (
-        <AdminDashboard
-          utilisateurActif={utilisateurActif}
-          setPage={setPage}
-          eleves={eleves}
-          classes={classes}
-          paiements={paiements}
-          notes={notes}
-          getMoyenne={getMoyenne}
-        />
-      );
-  }
 }
 
-Dashboard.propTypes = {
-  setPage: PropTypes.func.isRequired,
-};
+/* ── Composant principal ──────────────────────────────────────────── */
+export default function Dashboard() {
+  const { utilisateurActif } = useApp();
+  if (!utilisateurActif) return null;
+  const role = utilisateurActif.role;
+  if (role === 'parent')    return <ParentDashboard />;
+  if (role === 'enseignant') return <TeacherDashboard />;
+  return <AdminDashboard />;
+}
 
-Dashboard.defaultProps = {};
+const S = {
+  container:    { padding:28, display:'flex', flexDirection:'column', gap:20 },
+  welcomeBox:   { background:'var(--bg-card)', borderRadius:16, padding:'24px 28px', border:'1px solid var(--border-color)', display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:16 },
+  welcomeTitle: { fontFamily:'Playfair Display,serif', fontSize:22, fontWeight:700, color:'var(--text-primary)', marginBottom:4 },
+  welcomeSub:   { fontSize:14, color:'var(--text-secondary)' },
+  statsGrid:    { display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16 },
+  chartsGrid:   { display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 },
+  enfantAvatar: { width:44, height:44, borderRadius:'50%', background:'var(--primary)', color:'white', fontWeight:700, fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 },
+  infoItem:     { background:'var(--gray-50)', borderRadius:8, padding:'10px 12px', display:'flex', flexDirection:'column', gap:3 },
+  infoLabel:    { fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:.5 },
+};
