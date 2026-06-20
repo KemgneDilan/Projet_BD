@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { useApp } from './AppContext';
+import { useApp } from '../context/AppContext';
+import T from '../i18n/translations';
 import { Users, Calendar, Settings, Shield, Plus, Check, X, UserX, Camera } from 'lucide-react';
 
 const VILLES_CAMEROUN = [
@@ -14,8 +15,9 @@ export default function AdminPage() {
     utilisateurs, peutAcceder, peutCreerCompteHaut, peutInscrirePersonnel,
     modifierUtilisateur, ajouterUtilisateur,
     schoolSettings, updateSchoolSettings,
-    utilisateurActif
+    utilisateurActif, langue
   } = useApp();
+  const t = T[langue] || T.fr;
   const [activeTab, setActiveTab] = useState('parametres');
   const [localSettings, setLocalSettings] = useState(schoolSettings);
   const [modalUser, setModalUser] = useState(false);

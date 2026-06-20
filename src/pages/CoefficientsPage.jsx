@@ -7,8 +7,8 @@
  * - Accès : directeur et fondateur uniquement
  */
 import React, { useState } from 'react';
-import { useApp } from './AppContext';
-import T from './src/i18n/translations';
+import { useApp } from '../context/AppContext';
+import T from '../i18n/translations';
 
 export default function CoefficientsPage() {
   const {
@@ -18,10 +18,14 @@ export default function CoefficientsPage() {
   } = useApp();
   const t = T[langue] || T.fr;
 
-  // ID de la classe sélectionnée
+  // Section & classe sélectionnées
+  const [selectedSection, setSelectedSection] = useState('');
   const [selectedClasse, setSelectedClasse] = useState('');
-  // Afficher ou non le dropdown de sélection de classe
+  // Afficher ou non les dropdowns
+  const [showSectionPicker, setShowSectionPicker] = useState(false);
   const [showClassePicker, setShowClassePicker] = useState(false);
+
+  const isLarge = ['fondateur', 'directeur', 'admin'].includes(utilisateurActif?.role);
 
   if (!peutAcceder('coefficients_ecriture')) {
     return (
@@ -58,6 +62,11 @@ export default function CoefficientsPage() {
     bilingue:    '#8E44AD',
   };
 
+  // Classes filtrées selon la section (admin/directeur/fondateur doivent choisir une section d'abord)
+  const classesFiltrees = isLarge
+    ? (selectedSection ? classes.filter(c => c.section === selectedSection) : [])
+    : classes;
+
   return (
     <div style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 24 }}>
 
@@ -71,68 +80,97 @@ export default function CoefficientsPage() {
         </div>
       </div>
 
-      {/* ── Sélecteur de classe stylisé ── */}
-      <div style={{ position: 'relative' }}>
-        <div
-          className={`select-card ${selectedClasse ? 'active' : ''}`}
-          onClick={() => setShowClassePicker(p => !p)}
-          style={{ cursor: 'pointer', maxWidth: 420 }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              background: classe ? (SECTION_COLORS[classe.section] + '20') : 'var(--gray-100)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20
-            }}>🏫</div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {classe ? classe.nom : t.choisirClasseCoeff}
-              </div>
-              {classe && (
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                  {classe.section} · {classe.annee}
-                </div>
-              )}
-            </div>
-          </div>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', transform: showClassePicker ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>▼</span>
-        </div>
+      {/* ── Sélecteurs ── */}
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
 
-        {/* Dropdown liste de classes */}
-        {showClassePicker && (
-          <div style={{
-            position: 'absolute', top: '100%', left: 0, right: 0, maxWidth: 420, zIndex: 200,
-            background: 'var(--bg-card)', border: '1.5px solid var(--border-color)',
-            borderRadius: 14, boxShadow: 'var(--shadow-lg)', marginTop: 6, overflow: 'hidden',
-          }}>
-            {classes.map(c => {
-              const color = SECTION_COLORS[c.section] || '#1B4F72';
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => { setSelectedClasse(c.id); setShowClassePicker(false); }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-                    cursor: 'pointer', transition: 'background .15s',
-                    background: selectedClasse === c.id ? 'var(--gray-50)' : 'transparent',
-                    borderLeft: selectedClasse === c.id ? `3px solid ${color}` : '3px solid transparent',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-50)'}
-                  onMouseLeave={e => e.currentTarget.style.background = selectedClasse === c.id ? 'var(--gray-50)' : 'transparent'}
-                >
-                  <span style={{
-                    width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0
-                  }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{c.nom}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.section} · {c.niveau}</div>
-                  </div>
-                  {selectedClasse === c.id && <span style={{ color: '#27AE60', fontSize: 16 }}>✓</span>}
-                </div>
-              );
-            })}
+        {/* Sélecteur de section (obligatoire pour admin/directeur/fondateur) */}
+        {isLarge && (
+          <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: .5 }}>Section</div>
+            <div
+              className={`select-card ${selectedSection ? 'active' : ''}`}
+              onClick={() => { setShowSectionPicker(p => !p); setShowClassePicker(false); }}
+              style={{ cursor: 'pointer' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: selectedSection ? (SECTION_COLORS[selectedSection] || 'var(--gray-300)') : 'var(--gray-300)' }} />
+                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
+                  {selectedSection ? selectedSection.charAt(0).toUpperCase() + selectedSection.slice(1) : 'Choisir une section'}
+                </span>
+              </div>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', transform: showSectionPicker ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>▼</span>
+            </div>
+            {showSectionPicker && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 300, background: 'var(--bg-card)', border: '1.5px solid var(--border-color)', borderRadius: 12, boxShadow: 'var(--shadow-lg)', marginTop: 4, overflow: 'hidden' }}>
+                {['francophone', 'anglophone', 'bilingue'].map(sec => {
+                  const color = SECTION_COLORS[sec];
+                  return (
+                    <div key={sec}
+                      onClick={() => { setSelectedSection(sec); setSelectedClasse(''); setShowSectionPicker(false); }}
+                      style={{ padding: '11px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, background: selectedSection === sec ? 'var(--gray-50)' : 'transparent', borderLeft: `3px solid ${selectedSection === sec ? color : 'transparent'}`, transition: 'background .15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-50)'}
+                      onMouseLeave={e => e.currentTarget.style.background = selectedSection === sec ? 'var(--gray-50)' : 'transparent'}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{sec.charAt(0).toUpperCase() + sec.slice(1)}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>({classes.filter(c => c.section === sec).length} classe(s))</span>
+                      {selectedSection === sec && <span style={{ color: '#27AE60', marginLeft: 'auto' }}>✓</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
+
+        {/* Sélecteur de classe */}
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+          {isLarge && <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: .5 }}>Classe</div>}
+          <div
+            className={`select-card ${selectedClasse ? 'active' : ''} ${isLarge && !selectedSection ? 'disabled' : ''}`}
+            onClick={() => { if (!isLarge || selectedSection) { setShowClassePicker(p => !p); setShowSectionPicker(false); } }}
+            style={{ cursor: isLarge && !selectedSection ? 'not-allowed' : 'pointer', opacity: isLarge && !selectedSection ? 0.5 : 1, maxWidth: isLarge ? undefined : 420 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: classe ? (SECTION_COLORS[classe.section] + '20') : 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏫</div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {classe ? classe.nom : (isLarge && !selectedSection ? 'Choisir d\'abord une section' : t.choisirClasseCoeff)}
+                </div>
+                {classe && (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{classe.section} · {classe.annee}</div>
+                )}
+              </div>
+            </div>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', transform: showClassePicker ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>▼</span>
+          </div>
+
+          {/* Dropdown liste de classes */}
+          {showClassePicker && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200, background: 'var(--bg-card)', border: '1.5px solid var(--border-color)', borderRadius: 14, boxShadow: 'var(--shadow-lg)', marginTop: 6, overflow: 'hidden' }}>
+              {classesFiltrees.length === 0 ? (
+                <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>Aucune classe dans cette section</div>
+              ) : classesFiltrees.map(c => {
+                const color = SECTION_COLORS[c.section] || '#1B4F72';
+                return (
+                  <div key={c.id}
+                    onClick={() => { setSelectedClasse(c.id); setShowClassePicker(false); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer', transition: 'background .15s', background: selectedClasse === c.id ? 'var(--gray-50)' : 'transparent', borderLeft: selectedClasse === c.id ? `3px solid ${color}` : '3px solid transparent' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-50)'}
+                    onMouseLeave={e => e.currentTarget.style.background = selectedClasse === c.id ? 'var(--gray-50)' : 'transparent'}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{c.nom}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.section} · {c.niveau}</div>
+                    </div>
+                    {selectedClasse === c.id && <span style={{ color: '#27AE60', fontSize: 16 }}>✓</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Tableau des coefficients ── */}

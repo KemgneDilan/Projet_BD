@@ -8,11 +8,14 @@ const T = {
     dashboard: 'Tableau de bord', eleves: 'Élèves', classes: 'Classes',
     bulletins: 'Bulletins', paiements: 'Paiements', transport: 'Transport',
     personnel: 'Personnel', parametres: 'Paramètres', evaluations: 'Évaluations',
-    coefficients: 'Coefficients', messagerie: 'Messagerie',
+    coefficients: 'Coefficients', messagerie: 'Messagerie', banqueEpreuves: 'Banque d\'épreuves',
     mesEleves: 'Mes Élèves', mesBulletins: 'Bulletins & Notes',
     mesEnfants: 'Mes Enfants', dossierScolaire: 'Dossier Scolaire',
     mesPaiements: 'Mes Paiements', monTableauDeBord: 'Mon Tableau de bord',
     saisieNotesDiscipline: 'Saisie Notes', adminRoot: 'Administration',
+    emploiDuTemps: 'Emploi du Temps', emploiDuTempsDe: 'Emploi du Temps :',
+    aucunEmploiTemps: 'Aucun emploi du temps', aucunEmploiTempsDesc: "L'emploi du temps de cette classe n'a pas encore été configuré par la direction.",
+    horaire: 'Horaire', pause: 'Pause', fermer: 'Fermer',
 
     // Auth
     connexion: 'Connexion', bienvenue: 'Bienvenue!',
@@ -53,6 +56,11 @@ const T = {
     modifier: 'Modifier', supprimer: 'Supprimer', dossierEleve: "Dossier de l'élève",
     matricule: 'Matricule', bus: 'Bus scolaire', dateInscription: "Date d'inscription",
     anneeScolaire: 'Année scolaire', statut: 'Statut', auMoinsUnParent: 'Au moins un parent/tuteur requis',
+    roleParent: 'Rôle du parent',
+    selectionnezRoleParent: 'Veuillez sélectionner le rôle du parent principal',
+    erreurPereRequis: 'Veuillez renseigner le nom et le téléphone du père',
+    erreurMereRequis: 'Veuillez renseigner le nom et le téléphone de la mère',
+    erreurTuteurRequis: 'Veuillez renseigner le nom et le téléphone du tuteur',
 
     // Bulletins
     selectionnerEleve: '— Choisir un élève —', sequence: 'Séquence',
@@ -92,6 +100,15 @@ const T = {
     totalDoit100: 'Le total des pourcentages doit être 100%',
     sauvegarder: 'Sauvegarder',
     ajustementAuto: 'Ajustement automatique appliqué pour conserver 100%',
+
+    // Banque d'épreuves
+    banqueEpreuvesTitle: 'Banque d\'épreuves',
+    sujetsTelechargement: 'Sujets d\'évaluations téléchargeables',
+    nomSujet: 'Nom de l\'épreuve',
+    sujetFichier: 'Fichier épreuve',
+    telecharger: 'Télécharger',
+    aucuneEpreuve: 'Aucune épreuve enregistrée dans la banque.',
+    rechercherSujet: 'Rechercher un sujet...',
 
     // Coefficients
     coefficientsClasse: 'Coefficients par Classe',
@@ -175,11 +192,14 @@ const T = {
     dashboard: 'Dashboard', eleves: 'Students', classes: 'Classes',
     bulletins: 'Report Cards', paiements: 'Payments', transport: 'Transport',
     personnel: 'Staff', parametres: 'Settings', evaluations: 'Evaluations',
-    coefficients: 'Coefficients', messagerie: 'Messaging',
+    coefficients: 'Coefficients', messagerie: 'Messaging', banqueEpreuves: 'Exam Bank',
     mesEleves: 'My Students', mesBulletins: 'Report Cards & Grades',
     mesEnfants: 'My Children', dossierScolaire: 'School File',
     mesPaiements: 'My Payments', monTableauDeBord: 'My Dashboard',
     saisieNotesDiscipline: 'Grade Entry', adminRoot: 'Administration',
+    emploiDuTemps: 'Timetable', emploiDuTempsDe: 'Timetable:',
+    aucunEmploiTemps: 'No timetable', aucunEmploiTempsDesc: 'The timetable for this class has not yet been configured by the administration.',
+    horaire: 'Time', pause: 'Break', fermer: 'Close',
 
     // Auth
     connexion: 'Login', bienvenue: 'Welcome!',
@@ -221,6 +241,11 @@ const T = {
     modifier: 'Edit', supprimer: 'Delete', dossierEleve: 'Student File',
     matricule: 'Student ID', bus: 'School bus', dateInscription: 'Enrollment date',
     anneeScolaire: 'School year', statut: 'Status', auMoinsUnParent: 'At least one parent/guardian required',
+    roleParent: 'Parent role',
+    selectionnezRoleParent: 'Please select the primary parent role',
+    erreurPereRequis: 'Please fill in the father\'s name and phone number',
+    erreurMereRequis: 'Please fill in the mother\'s name and phone number',
+    erreurTuteurRequis: 'Please fill in the guardian\'s name and phone number',
 
     // Bulletins
     selectionnerEleve: '— Choose a student —', sequence: 'Sequence',
@@ -260,6 +285,15 @@ const T = {
     totalDoit100: 'Total percentages must equal 100%',
     sauvegarder: 'Save',
     ajustementAuto: 'Auto-adjustment applied to maintain 100%',
+
+    // Banque d'épreuves
+    banqueEpreuvesTitle: 'Exam Bank',
+    sujetsTelechargement: 'Downloadable evaluation subjects',
+    nomSujet: 'Exam name',
+    sujetFichier: 'Exam file',
+    telecharger: 'Download',
+    aucuneEpreuve: 'No exams stored in the bank.',
+    rechercherSujet: 'Search subject...',
 
     // Coefficients
     coefficientsClasse: 'Coefficients by Class',

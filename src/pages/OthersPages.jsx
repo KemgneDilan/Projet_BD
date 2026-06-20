@@ -3,9 +3,10 @@
  * @description Pages de gestion auxiliaires : Personnel, Classes (et matières), Transport et Paramètres.
  */
 import React, { useState } from 'react';
-import { useApp } from './AppContext';
-import T from './src/i18n/translations';
-import { UsersRound, School, Bus, Settings, BookOpen, Lock, ShieldAlert, Trash2, Plus, ChevronUp, ChevronDown, FileEdit, Check, X } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import T from '../i18n/translations';
+import { StudentProfileModal } from './ElevesPage';
+import { UsersRound, School, Bus, Settings, BookOpen, Lock, ShieldAlert, Trash2, Plus, ChevronUp, ChevronDown, FileEdit, Check, X, Calendar } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════════════════════
    LISTE DES VILLES DU CAMEROUN (pour le lieu de naissance)
@@ -27,7 +28,10 @@ export function PersonnelPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   
   const role = utilisateurActif?.role;
+  const isAdmin = role === 'admin';
   const peutGerer = role === 'directeur';
+  // Non-admin ne voit que les utilisateurs actifs
+  const usersVisibles = isAdmin ? utilisateurs : utilisateurs.filter(u => u.actif !== false);
   
   const initialForm = {
     nom: '', prenom: '', email: '', role: 'enseignant', motDePasse: '1234',
@@ -78,7 +82,7 @@ export function PersonnelPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div className="section-title"><UsersRound size={24} style={{ marginRight: 8, verticalAlign: 'middle' }} /> {t.personnel2}</div>
-          <div className="section-subtitle">{utilisateurs.length} {t.membrePersonnel}</div>
+          <div className="section-subtitle">{usersVisibles.length} {t.membrePersonnel}</div>
         </div>
         {peutGerer && (
           <button className="btn btn-primary" onClick={() => { setForm(initialForm); setModal('ajout'); }}>
@@ -88,21 +92,24 @@ export function PersonnelPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
-        {utilisateurs.map(u => (
-          <div key={u.id} className="card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => openDetails(u)}>
+        {usersVisibles.map(u => (
+          <div key={u.id} className="card" style={{ cursor: 'pointer', transition: 'transform 0.2s', opacity: u.actif === false ? 0.5 : 1, borderLeft: u.actif === false ? '4px solid #9CA3AF' : '4px solid transparent' }} onClick={() => openDetails(u)}>
             <div className="card-body" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               {u.photo ? (
-                <img src={u.photo} alt={`${u.prenom} ${u.nom}`} style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border-color)', flexShrink: 0 }} />
+                <img src={u.photo} alt={`${u.prenom} ${u.nom}`} style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border-color)', flexShrink: 0, filter: u.actif === false ? 'grayscale(1)' : 'none' }} />
               ) : (
-                <div style={{ width: 50, height: 50, borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
+                <div style={{ width: 50, height: 50, borderRadius: '50%', background: u.actif === false ? '#9CA3AF' : 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
                   {u.prenom[0]}{u.nom[0]}
                 </div>
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <h4 style={{ margin: 0, fontSize: 16, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <h4 style={{ margin: 0, fontSize: 16, color: u.actif === false ? 'var(--text-muted)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: u.actif === false ? 'line-through' : 'none' }}>
                   {u.prenom} {u.nom}
                 </h4>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{u.role}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                  {u.role}
+                  {u.actif === false && <span style={{ background: '#6B7280', color: 'white', borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 700, marginLeft: 6 }}>Désactivé</span>}
+                </div>
               </div>
             </div>
           </div>
@@ -260,15 +267,21 @@ export function PersonnelPage() {
    PAGE CLASSES ET MATIÈRES
 ══════════════════════════════════════════════════════════════════════════ */
 export function ClassesPage() {
-  const { classes, ajouterClasse, modifierClasse, utilisateurs, matieres, ajouterMatiere, supprimerMatiere, modifierMatiere, peutAcceder, langue } = useApp();
+  const { classes, ajouterClasse, modifierClasse, utilisateurs, matieres, ajouterMatiere, supprimerMatiere, modifierMatiere, peutAcceder, langue, eleves, getBulletins, getMoyenne, emploisDuTemps, sauvegarderEmploiDuTemps } = useApp();
   const t = T[langue] || T.fr;
   const [modal, setModal] = useState(null);
   const [selectedClasse, setSelectedClasse] = useState(null);
-  const [form, setForm] = useState({ nom: '', niveau: '', section: 'francophone' });
+  const [selectedEleve, setSelectedEleve] = useState(null);
+  const [viewTab, setViewTab] = useState('infos');
+  const [form, setForm] = useState({ nom: '', niveau: '', section: 'francophone', salle: '' });
   const [newMatiere, setNewMatiere] = useState('');
   const [matiereModal, setMatiereModal] = useState(false);
   const [editingMatiere, setEditingMatiere] = useState(null); // id de la matière en cours d'édition
   const [editNom, setEditNom] = useState('');
+  
+  // Emploi du temps
+  const [edtModal, setEdtModal] = useState(false);
+  const [edtConfig, setEdtConfig] = useState(null);
 
   const enseignants = utilisateurs.filter(u => u.role === 'enseignant');
 
@@ -276,7 +289,7 @@ export function ClassesPage() {
 
   const openEdit = (c) => {
     setSelectedClasse(c);
-    setForm({ nom: c.nom, niveau: c.niveau, section: c.section });
+    setForm({ nom: c.nom, niveau: c.niveau, section: c.section, salle: c.salle || '' });
     setModal('edit');
   };
 
@@ -298,6 +311,53 @@ export function ClassesPage() {
     if (!newMatiere.trim()) return;
     await ajouterMatiere(classeId, newMatiere);
     setNewMatiere('');
+  };
+
+  const openEdtModal = (c) => {
+    setSelectedClasse(c);
+    const existing = emploisDuTemps.find(e => e.classeId === c.id);
+    if (existing) {
+      setEdtConfig(JSON.parse(JSON.stringify(existing)));
+    } else {
+      setEdtConfig({
+        classeId: c.id,
+        heureDebut: '08:00',
+        dureeCours: 55,
+        tranches: 7,
+        pauses: [{ apresTranche: 2, duree: 30 }, { apresTranche: 5, duree: 60 }],
+        grille: { Lundi: {}, Mardi: {}, Mercredi: {}, Jeudi: {}, Vendredi: {} }
+      });
+    }
+    setEdtModal('config'); // 'config' ou 'grille'
+  };
+
+  const generateTimeSlots = (config) => {
+    if (!config) return [];
+    const slots = [];
+    let [h, m] = config.heureDebut.split(':').map(Number);
+    let currentTime = h * 60 + m;
+
+    for (let i = 0; i < config.tranches; i++) {
+      const startH = Math.floor(currentTime / 60).toString().padStart(2, '0');
+      const startM = (currentTime % 60).toString().padStart(2, '0');
+      
+      currentTime += config.dureeCours;
+      const endH = Math.floor(currentTime / 60).toString().padStart(2, '0');
+      const endM = (currentTime % 60).toString().padStart(2, '0');
+      
+      slots.push({ i, type: 'cours', label: `${startH}:${startM} - ${endH}:${endM}` });
+
+      const pause = config.pauses.find(p => p.apresTranche === i + 1);
+      if (pause) {
+        const pStartH = Math.floor(currentTime / 60).toString().padStart(2, '0');
+        const pStartM = (currentTime % 60).toString().padStart(2, '0');
+        currentTime += pause.duree;
+        const pEndH = Math.floor(currentTime / 60).toString().padStart(2, '0');
+        const pEndM = (currentTime % 60).toString().padStart(2, '0');
+        slots.push({ type: 'pause', label: `${pStartH}:${pStartM} - ${pEndH}:${pEndM}`, duree: pause.duree });
+      }
+    }
+    return slots;
   };
 
   const handleReorderMatiere = (classeId, matiereId, direction) => {
@@ -326,42 +386,70 @@ export function ClassesPage() {
           <div className="section-title"><School size={24} style={{ marginRight: 8, verticalAlign: 'middle' }} /> {t.gestionClasses}</div>
           <div className="section-subtitle">{classes.length} {t.classesCrees}</div>
         </div>
-        <button className="btn btn-primary" onClick={() => { setForm({ nom: '', niveau: '', section: 'francophone' }); setModal('ajout'); }}>
+        <button className="btn btn-primary" onClick={() => { setForm({ nom: '', niveau: '', section: 'francophone', salle: '' }); setModal('ajout'); }}>
           {t.nouvelleClasse}
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
-        {classes.map(c => {
-          const matieresClasse = matieres.filter(m => m.classeId === c.id);
-          return (
-            <div key={c.id} className="card">
-              <div className="card-header" style={{ background: 'var(--gray-50)', padding: '16px 20px' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 18, color: 'var(--text-primary)' }}>{c.nom}</h3>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.niveau} · {c.section} · {c.annee}</div>
-                </div>
-                <button className="btn btn-ghost btn-sm btn-icon" onClick={() => openEdit(c)}><Settings size={14} /></button>
-              </div>
-              <div className="card-body" style={{ padding: '16px 20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{t.effectif} <strong>{c.effectif}</strong></span>
-                  <span className="badge badge-primary">{matieresClasse.length} {t.matiere}s</span>
-                </div>
-                
-                {/* Gestion des matières de cette classe */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                  <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => openMatiereModal(c)}>
-                    <BookOpen size={14} style={{marginRight: 4}} /> Gérer matières ({matieresClasse.length})
-                  </button>
-                </div>
+      {/* Classes regroupées par section */}
+      {[
+        { key: 'francophone', label: 'Section Francophone', color: '#1B4F72', bg: '#EBF5FB' },
+        { key: 'anglophone',  label: 'Section Anglophone',  color: '#27AE60', bg: '#EAFAF1' },
+        { key: 'bilingue',    label: 'Section Bilingue',    color: '#8E44AD', bg: '#F4ECF7' },
+      ].map(({ key, label, color, bg }) => {
+        const classesDuGroupe = classes.filter(c => c.section === key);
+        if (classesDuGroupe.length === 0) return null;
+        return (
+          <div key={key} style={{ marginBottom: 32 }}>
+            {/* En-tête de section */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '12px 20px', background: bg, borderRadius: 12, border: `1.5px solid ${color}30` }}>
+              <span style={{ width: 12, height: 12, borderRadius: '50%', background: color, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color }}>{label}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{classesDuGroupe.length} classe(s)</div>
               </div>
             </div>
-          );
-        })}
-      </div>
 
-      {modal && (
+            {/* Grille des classes de cette section */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+              {classesDuGroupe.map(c => {
+                const matieresClasse = matieres.filter(m => m.classeId === c.id);
+                return (
+                  <div key={c.id} className="card" style={{ borderTop: `3px solid ${color}`, cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }} 
+                       onClick={() => { setSelectedClasse(c); setModal('view_eleves'); }}
+                       onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                       onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                  >
+                    <div className="card-header" style={{ background: 'var(--gray-50)', padding: '14px 18px' }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: 17, color: 'var(--text-primary)' }}>{c.nom}</h3>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{c.niveau} · {c.annee} {c.salle ? `· Salle: ${c.salle}` : ''}</div>
+                      </div>
+                      <button className="btn btn-ghost btn-sm btn-icon" onClick={(e) => { e.stopPropagation(); openEdit(c); }}><Settings size={14} /></button>
+                    </div>
+                    <div className="card-body" style={{ padding: '14px 18px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{t.effectif} <strong>{c.effectif}</strong></span>
+                        <span className="badge" style={{ background: color + '18', color }}>{matieresClasse.length} {t.matiere}s</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-sm" style={{ flex: 1, background: color + '12', color, border: `1px solid ${color}30`, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={(e) => { e.stopPropagation(); openMatiereModal(c); }}>
+                          <BookOpen size={14} /> Matières ({matieresClasse.length})
+                        </button>
+                        <button className="btn btn-sm" style={{ flex: 1, background: 'var(--gray-50)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={(e) => { e.stopPropagation(); openEdtModal(c); }}>
+                          <Calendar size={14} /> Emploi du tps
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {modal === 'ajout' || modal === 'edit' ? (
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
@@ -371,6 +459,7 @@ export function ClassesPage() {
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div className="form-group"><label className="form-label">Nom (ex: SIL A)</label><input className="form-control" value={form.nom} onChange={e => setForm({...form, nom: e.target.value})} /></div>
               <div className="form-group"><label className="form-label">{t.niveauNom} (ex: SIL)</label><input className="form-control" value={form.niveau} onChange={e => setForm({...form, niveau: e.target.value})} /></div>
+              <div className="form-group"><label className="form-label">Salle (ex: S12)</label><input className="form-control" value={form.salle} onChange={e => setForm({...form, salle: e.target.value})} placeholder="Identifiant de la salle physique" /></div>
               <div className="form-group">
                 <label className="form-label">Section</label>
                 <select className="form-control" value={form.section} onChange={e => setForm({...form, section: e.target.value})}>
@@ -382,10 +471,76 @@ export function ClassesPage() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-cancel" onClick={() => setModal(null)}>{t.annuler}</button>
-              <button className="btn btn-primary" onClick={saveClasse} disabled={!form.nom}>{t.sauvegarder}</button>
+              <button className="btn btn-primary" onClick={saveClasse} disabled={!form.nom || !form.salle}>{t.sauvegarder}</button>
             </div>
           </div>
         </div>
+      ) : null}
+
+      {modal === 'view_eleves' && selectedClasse && (
+        <div className="modal-overlay" onClick={() => setModal(null)}>
+          <div className="modal" style={{ maxWidth: 800, width: '90%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h2 className="card-title">Élèves de la classe {selectedClasse.nom}</h2>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Effectif : {eleves.filter(e => e.classeId === selectedClasse.id).length}</div>
+              </div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setModal(null)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ overflowY: 'auto', padding: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                {eleves.filter(e => e.classeId === selectedClasse.id).map(eleve => {
+                  const buls = getBulletins ? getBulletins(eleve.id) : [];
+                  const dernierBul = buls[buls.length - 1];
+                  return (
+                    <div key={eleve.id} className="card" style={{ cursor: 'pointer', border: '1px solid var(--border-color)' }} onClick={() => { setSelectedEleve(eleve); setModal('view_eleve_details'); }}>
+                      <div style={{ padding: '12px', display: 'flex', gap: 12, alignItems: 'center' }}>
+                        {eleve.photo ? (
+                          <img src={eleve.photo} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                            {eleve.prenom[0]}{eleve.nom[0]}
+                          </div>
+                        )}
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{eleve.prenom} {eleve.nom}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{eleve.matricule}</div>
+                          {dernierBul && <div style={{ fontSize: 12, color: 'var(--primary)', marginTop: 2 }}>Moy: {getMoyenne(dernierBul)}/20</div>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {eleves.filter(e => e.classeId === selectedClasse.id).length === 0 && (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>
+                    Aucun élève dans cette classe.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modal === 'view_eleve_details' && selectedEleve && (
+        <StudentProfileModal
+          selected={selectedEleve}
+          setModal={(m) => {
+            if (m === null) setModal('view_eleves');
+          }}
+          viewTab={viewTab}
+          setViewTab={setViewTab}
+          t={t}
+          peutEditerDiscipline={() => false}
+          role={utilisateurs.find(u => u.id === selectedEleve.enseignantId)?.role || 'enseignant'}
+          isFondateur={false}
+          newIncident={{}}
+          setNewIncident={() => {}}
+          handleAddIncident={() => {}}
+          peutModifier={false}
+          openEdit={null}
+          getClasse={(id) => classes.find(c => c.id === id)}
+        />
       )}
 
       {/* MODAL GESTION MATIÈRES — Interface structurée */}
@@ -540,6 +695,119 @@ export function ClassesPage() {
 
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => { setMatiereModal(false); setEditingMatiere(null); }}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {edtModal && selectedClasse && (
+        <div className="modal-overlay" onClick={() => setEdtModal(false)}>
+          <div className="modal" style={{ maxWidth: edtModal === 'grille' ? 1000 : 500, width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="card-title">Emploi du Temps : {selectedClasse.nom}</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setEdtModal(false)}>✕</button>
+            </div>
+            
+            <div className="modal-body" style={{ overflowY: 'auto', padding: 20 }}>
+              {edtModal === 'config' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div className="form-group">
+                    <label className="form-label">Heure de début (ex: 08:00)</label>
+                    <input type="time" className="form-control" value={edtConfig.heureDebut} onChange={e => setEdtConfig({...edtConfig, heureDebut: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Durée d'un cours (minutes)</label>
+                    <input type="number" className="form-control" value={edtConfig.dureeCours} onChange={e => setEdtConfig({...edtConfig, dureeCours: Number(e.target.value)})} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Nombre de tranches horaires par jour</label>
+                    <input type="number" className="form-control" value={edtConfig.tranches} onChange={e => setEdtConfig({...edtConfig, tranches: Number(e.target.value)})} />
+                  </div>
+                  
+                  <div style={{ padding: 12, background: 'var(--gray-50)', borderRadius: 8 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Pauses</div>
+                    {edtConfig.pauses.map((p, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'center' }}>
+                        <span style={{ fontSize: 13 }}>Après tranche</span>
+                        <input type="number" className="form-control" style={{ width: 60, padding: 4 }} value={p.apresTranche} onChange={e => {
+                          const newPauses = [...edtConfig.pauses];
+                          newPauses[i].apresTranche = Number(e.target.value);
+                          setEdtConfig({...edtConfig, pauses: newPauses});
+                        }} />
+                        <span style={{ fontSize: 13 }}>Durée (min)</span>
+                        <input type="number" className="form-control" style={{ width: 70, padding: 4 }} value={p.duree} onChange={e => {
+                          const newPauses = [...edtConfig.pauses];
+                          newPauses[i].duree = Number(e.target.value);
+                          setEdtConfig({...edtConfig, pauses: newPauses});
+                        }} />
+                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => {
+                          setEdtConfig({...edtConfig, pauses: edtConfig.pauses.filter((_, idx) => idx !== i)});
+                        }}><Trash2 size={14} color="var(--danger)" /></button>
+                      </div>
+                    ))}
+                    <button className="btn btn-sm btn-secondary" onClick={() => setEdtConfig({...edtConfig, pauses: [...edtConfig.pauses, { apresTranche: 1, duree: 15 }]})}>
+                      <Plus size={14} /> Ajouter une pause
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="table" style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ background: 'var(--gray-50)', padding: '10px' }}>Horaire</th>
+                        {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'].map(d => <th key={d} style={{ background: 'var(--primary)', color: 'white', padding: '10px', textAlign: 'center' }}>{d}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {generateTimeSlots(edtConfig).map((slot, sIdx) => (
+                        <tr key={sIdx} style={slot.type === 'pause' ? { background: '#f8f9fa' } : {}}>
+                          <td style={{ padding: '10px', fontWeight: 600, fontSize: 13, color: 'var(--text-secondary)', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                            {slot.label}
+                            {slot.type === 'pause' && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Pause ({slot.duree} min)</div>}
+                          </td>
+                          {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'].map(d => (
+                            <td key={d} style={{ borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: 6, textAlign: 'center' }}>
+                              {slot.type === 'pause' ? (
+                                <span style={{ color: '#adb5bd', fontStyle: 'italic', fontSize: 13 }}>-- Pause --</span>
+                              ) : (
+                                <select 
+                                  className="form-control" 
+                                  style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: edtConfig.grille[d]?.[slot.i] ? '1px solid var(--primary)' : '1px solid var(--border-color)', background: edtConfig.grille[d]?.[slot.i] ? '#f0f4ff' : 'white' }}
+                                  value={edtConfig.grille[d]?.[slot.i] || ''}
+                                  onChange={e => {
+                                    const newGrille = { ...edtConfig.grille };
+                                    if (!newGrille[d]) newGrille[d] = {};
+                                    newGrille[d][slot.i] = e.target.value;
+                                    setEdtConfig({ ...edtConfig, grille: newGrille });
+                                  }}
+                                >
+                                  <option value="">- Vide -</option>
+                                  {matieres.filter(m => m.classeId === selectedClasse.id).map(m => (
+                                    <option key={m.id} value={m.id}>{m.nom}</option>
+                                  ))}
+                                </select>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+              <button className="btn btn-ghost" onClick={() => setEdtModal(false)}>Annuler</button>
+              {edtModal === 'config' ? (
+                <button className="btn btn-primary" onClick={() => setEdtModal('grille')}>Continuer vers la grille</button>
+              ) : (
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button className="btn btn-secondary" onClick={() => setEdtModal('config')}>Retour Config</button>
+                  <button className="btn btn-primary" onClick={() => { sauvegarderEmploiDuTemps(selectedClasse.id, edtConfig); setEdtModal(false); }}>Enregistrer</button>
+                </div>
+              )}
             </div>
           </div>
         </div>

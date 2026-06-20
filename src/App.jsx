@@ -4,22 +4,22 @@
  * par page et injecte le contexte global.
  */
 import React from 'react';
-import { AppProvider, useApp } from './AppContext';
-import LoginPage from './LoginPage';
-import Dashboard from './Dashboard';
-import ElevesPage from './ElevesPage';
-import BulletinsPage from './BulletinsPage';
-import PaiementsPage from './PaiementsPage';
-import EvaluationsPage from './EvaluationsPage';
-import CoefficientsPage from './CoefficientsPage';
-import MessageriePage from './MessageriePage';
-import SaisieNotesPage from './SaisieNotesPage';
-import AdminPage from './AdminPage';
-import { ClassesPage, TransportPage, PersonnelPage, ParametresPage } from './OthersPages';
-import Sidebar from './Sidebar';
-import Topbar from './Topbar';
-import ErrorBoundary from './ErrorBoundary';
-import './global.css';
+import { AppProvider, useApp } from './context/AppContext';
+import LoginPage from './pages/LoginPage';
+import Dashboard from './pages/Dashboard';
+import ElevesPage from './pages/ElevesPage';
+import BulletinsPage from './pages/BulletinsPage';
+import PaiementsPage from './pages/PaiementsPage';
+import EvaluationsPage from './pages/EvaluationsPage';
+import CoefficientsPage from './pages/CoefficientsPage';
+import MessageriePage from './pages/MessageriePage';
+import SaisieNotesPage from './pages/SaisieNotesPage';
+import AdminPage from './pages/AdminPage';
+import BanqueEpreuvesPage from './pages/BanqueEpreuvesPage';
+import { ClassesPage, TransportPage, PersonnelPage, ParametresPage } from './pages/OthersPages';
+import Topbar from './components/Topbar';
+import ErrorBoundary from './components/ErrorBoundary';
+import './styles/global.css';
 
 function AppInner() {
   const { utilisateurActif, currentPage, darkMode } = useApp();
@@ -28,6 +28,21 @@ function AppInner() {
   React.useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+
+  // Ouvrir le sélecteur de date natif au clic n'importe où sur l'input date
+  React.useEffect(() => {
+    const handleDateInputClick = (e) => {
+      if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'date') {
+        try {
+          e.target.showPicker();
+        } catch (err) {
+          console.warn('showPicker not supported:', err);
+        }
+      }
+    };
+    document.addEventListener('click', handleDateInputClick);
+    return () => document.removeEventListener('click', handleDateInputClick);
+  }, []);
 
   if (!utilisateurActif) return <LoginPage />;
 
@@ -45,12 +60,12 @@ function AppInner() {
     saisie_notes:<SaisieNotesPage />,
     coefficients:<CoefficientsPage />,
     messagerie:  <MessageriePage />,
+    banque_epreuves: <BanqueEpreuvesPage />,
     adminRoot:   <AdminPage />,
   };
 
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden' }}>
-      <Sidebar />
       <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
         <Topbar />
         <main

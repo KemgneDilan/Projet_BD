@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useApp } from './AppContext';
-import T from './src/i18n/translations';
+import { useApp } from '../context/AppContext';
+import T from '../i18n/translations';
 import { MessageCircle, Send, Search, Lock, User as UserIcon } from 'lucide-react';
 
 export default function MessageriePage() {
@@ -71,6 +71,24 @@ export default function MessageriePage() {
   const formatTime = (iso) => {
     if (!iso) return '';
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDateDivider = (iso) => {
+    if (!iso) return '';
+    const date = new Date(iso);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return langue === 'fr' ? "Aujourd'hui" : 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return langue === 'fr' ? 'Hier' : 'Yesterday';
+    } else {
+      return date.toLocaleDateString(langue === 'fr' ? 'fr-FR' : 'en-US', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+      });
+    }
   };
 
   return (
@@ -160,25 +178,39 @@ export default function MessageriePage() {
                   </div>
                 </div>
               ) : (
-                conversation.map(msg => {
+                conversation.map((msg, index) => {
                   const isMe = msg.expediteurId === myId;
+                  const showDateDivider = index === 0 || new Date(msg.dateEnvoi).toDateString() !== new Date(conversation[index - 1].dateEnvoi).toDateString();
+
                   return (
-                    <div key={msg.id} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
-                      <div style={{ 
-                        background: isMe ? 'var(--primary)' : 'var(--bg-card)', 
-                        color: isMe ? 'white' : 'var(--text-primary)',
-                        padding: '10px 14px', 
-                        borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                        fontSize: 14, lineHeight: 1.4,
-                        boxShadow: '0 1px 2px rgba(0,0,0,.05)',
-                        border: isMe ? 'none' : '1px solid var(--border-color)',
-                      }}>
-                        {msg.corps}
+                    <React.Fragment key={msg.id}>
+                      {showDateDivider && (
+                        <div style={{ margin: '12px auto 4px', textAlign: 'center' }}>
+                          <span style={{ 
+                            background: 'var(--gray-200)', color: 'var(--text-secondary)', 
+                            padding: '4px 12px', borderRadius: 12, fontSize: 11, fontWeight: 600, textTransform: 'capitalize' 
+                          }}>
+                            {formatDateDivider(msg.dateEnvoi)}
+                          </span>
+                        </div>
+                      )}
+                      <div style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
+                        <div style={{ 
+                          background: isMe ? 'var(--primary)' : 'var(--bg-card)', 
+                          color: isMe ? 'white' : 'var(--text-primary)',
+                          padding: '10px 14px', 
+                          borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                          fontSize: 14, lineHeight: 1.4,
+                          boxShadow: '0 1px 2px rgba(0,0,0,.05)',
+                          border: isMe ? 'none' : '1px solid var(--border-color)',
+                        }}>
+                          {msg.corps}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, textAlign: isMe ? 'right' : 'left' }}>
+                          {formatTime(msg.dateEnvoi)}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, textAlign: isMe ? 'right' : 'left' }}>
-                        {formatTime(msg.dateEnvoi)}
-                      </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })
               )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useApp } from './AppContext';
-import T from './src/i18n/translations';
+import { useApp } from '../context/AppContext';
+import T from '../i18n/translations';
 import { FileEdit, CheckCircle2, User, BookOpen, Clock, BarChart3, Save, School } from 'lucide-react';
 
 /* ── Auto-appréciation selon la note ─── */
@@ -32,9 +32,15 @@ export default function SaisieNotesPage() {
     ? classes.filter(c => mesClassesIds.includes(c.id))
     : classes;
 
+  const [selectedSection, setSelectedSection] = useState('');
   const [selectedClasse, setSelectedClasse] = useState('');
   const [selectedMatiere, setSelectedMatiere] = useState('');
   const [selectedSequence, setSelectedSequence] = useState('SEQ1');
+
+  const isLarge = utilisateurActif?.role !== 'enseignant';
+  const classesFiltrees = utilisateurActif?.role === 'enseignant'
+    ? classesAccessibles
+    : (isLarge && selectedSection ? classesAccessibles.filter(c => c.section === selectedSection) : (isLarge ? [] : classesAccessibles));
   
   const [localData, setLocalData] = useState({});
   
@@ -133,14 +139,34 @@ export default function SaisieNotesPage() {
       {/* ── Sélecteurs unifiés ── */}
       <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          {/* Section (uniquement pour admin/directeur/fondateur) */}
+          {isLarge && (
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, display: 'block', textTransform: 'uppercase' }}>Section</label>
+              <select className="form-control" value={selectedSection}
+                onChange={e => { setSelectedSection(e.target.value); setSelectedClasse(''); setSelectedMatiere(''); }}
+                style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: selectedSection ? '1.5px solid var(--primary)' : '1px solid var(--border-color)', fontWeight: 600, color: selectedSection ? 'var(--primary)' : 'inherit' }}
+              >
+                <option value="">— Section —</option>
+                <option value="francophone">Francophone</option>
+                <option value="anglophone">Anglophone</option>
+                <option value="bilingue">Bilingue</option>
+              </select>
+            </div>
+          )}
+
           {/* Classe */}
           <div style={{ flex: 1, minWidth: 200 }}>
              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase' }}>
                <School size={16} /> CLASSE
              </label>
-             <select className="form-control" value={selectedClasse} onChange={e => { setSelectedClasse(e.target.value); setSelectedMatiere(''); }} style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border-color)', fontWeight: 600 }}>
-                <option value="">— Sélectionner —</option>
-                {classesAccessibles.map(c => <option key={c.id} value={c.id}>{c.nom} ({getElevesClasse(c.id).length} élèves)</option>)}
+             <select className="form-control" value={selectedClasse}
+               onChange={e => { setSelectedClasse(e.target.value); setSelectedMatiere(''); }}
+               disabled={isLarge && !selectedSection}
+               style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border-color)', fontWeight: 600, opacity: isLarge && !selectedSection ? 0.5 : 1 }}
+             >
+               <option value="">{isLarge && !selectedSection ? '— Choisir une section d\'abord —' : '— Sélectionner —'}</option>
+               {classesFiltrees.map(c => <option key={c.id} value={c.id}>{c.nom} ({getElevesClasse(c.id).length} élèves)</option>)}
              </select>
           </div>
           

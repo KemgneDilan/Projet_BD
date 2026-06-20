@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useApp } from './AppContext';
+import { useApp } from '../context/AppContext';
 import { 
   Banknote, TrendingUp, FileText, 
-  User, List, Settings, Search, Printer, Check
+  User, List, Settings, Search, Printer, Check, Filter, AlertTriangle
 } from 'lucide-react';
+import { StudentProfileModal } from './ElevesPage';
 
 export default function PaiementsPage() {
   const { eleves, classes, paiements, frais, enregistrerPaiement, utilisateurActif, setFrais, schoolSettings } = useApp();
@@ -11,7 +12,10 @@ export default function PaiementsPage() {
   const [selectedEleve, setSelectedEleve] = useState('');
   const [formPay, setFormPay] = useState({ type: 'scolarite', montant: '', statut: 'payé', trancheId: '' });
   const [search, setSearch] = useState('');
-  const [onglet, setOnglet] = useState('liste'); // liste | eleve | parametres
+  const [onglet, setOnglet] = useState('eleve'); // liste | eleve | parametres
+  const [filtrePaiement, setFiltrePaiement] = useState('tous'); // 'tous' | 'ajour' | 'impayes'
+  const [selectedEleveObj, setSelectedEleveObj] = useState(null);
+  const [viewTab, setViewTab] = useState('infos');
 
   const role = utilisateurActif?.role;
   const peutModifier = ['directeur', 'fondateur'].includes(role);
@@ -19,6 +23,23 @@ export default function PaiementsPage() {
   const actifs = eleves.filter(e => e.statut === 'actif');
   const elevesFiltered = actifs.filter(e => {
     if (role === 'parent') return e.parentEmail === utilisateurActif?.email;
+    if (search && !(e.nom.toLowerCase().includes(search.toLowerCase()) || e.prenom.toLowerCase().includes(search.toLowerCase()) || e.matricule?.toLowerCase().includes(search.toLowerCase()))) return false;
+    return true;
+  });
+
+  const getTranchesEnRetard = (eleveId) => {
+    const today = new Date();
+    return frais.tranches.filter(t => {
+      const isPast = new Date(t.echeance) < today;
+      const hasPaid = paiements.some(p => p.eleveId === eleveId && p.trancheId === t.id && p.statut === 'payé');
+      return isPast && !hasPaid;
+    });
+  };
+
+  const elevesFinal = elevesFiltered.filter(e => {
+    const retards = getTranchesEnRetard(e.id);
+    if (filtrePaiement === 'impayes' && retards.length === 0) return false;
+    if (filtrePaiement === 'ajour' && retards.length > 0) return false;
     return true;
   });
 
@@ -85,8 +106,37 @@ export default function PaiementsPage() {
     win.document.close(); win.print();
   };
 
+  // Calcul global des impayés pour la bannière
+  const nbImpayes = actifs.filter(e => getTranchesEnRetard(e.id).length > 0).length;
+
   return (
     <div style={styles.container}>
+      {/* Bannière alerte impayés */}
+      {peutModifier && nbImpayes > 0 && (
+        <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 12, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: '#DC2626', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <AlertTriangle size={18} color="white" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#991B1B' }}>
+                {nbImpayes} élève{nbImpayes > 1 ? 's' : ''} avec des tranches impayées
+              </div>
+              <div style={{ fontSize: 13, color: '#B91C1C' }}>
+                Les échéances sont dépassées sans paiement enregistré
+              </div>
+            </div>
+          </div>
+          <button
+            className="btn btn-sm"
+            style={{ background: '#DC2626', color: 'white', border: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
+            onClick={() => { setOnglet('eleve'); setFiltrePaiement('impayes'); }}
+          >
+            Voir les impayés
+          </button>
+        </div>
+      )}
+
       {/* Stats */}
       {peutModifier && (
         <div style={styles.statsRow}>
@@ -161,16 +211,26 @@ export default function PaiementsPage() {
       {/* PAR ÉLÈVE */}
       {onglet === 'eleve' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {elevesFiltered.map(eleve => {
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: 'var(--bg-card)', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-color)' }}>
+            <Filter size={18} color="var(--text-muted)" />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className={`btn btn-sm ${filtrePaiement === 'tous' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltrePaiement('tous')}>Tous les élèves</button>
+              <button className={`btn btn-sm ${filtrePaiement === 'ajour' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltrePaiement('ajour')} style={filtrePaiement === 'ajour' ? { background: 'var(--success)', borderColor: 'var(--success)', color: 'white' } : {}}>À jour</button>
+              <button className={`btn btn-sm ${filtrePaiement === 'impayes' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltrePaiement('impayes')} style={filtrePaiement === 'impayes' ? { background: 'var(--danger)', borderColor: 'var(--danger)', color: 'white' } : {}}>Avec impayés</button>
+            </div>
+          </div>
+          {elevesFinal.map(eleve => {
             const cl = classes.find(c => c.id === eleve.classeId);
             const pays = getPaiementsEleve(eleve.id);
             const total = totalPaye(eleve.id);
             const inscrit = estInscrit(eleve.id);
             const totalDu = frais.inscription + frais.scolariteAnnuelle + (eleve.bus ? frais.bus : 0);
             const restant = Math.max(0, totalDu - total);
+            const retards = getTranchesEnRetard(eleve.id);
+            
             return (
-              <div key={eleve.id} className="card">
-                <div className="card-header">
+              <div key={eleve.id} className="card" style={{ cursor: 'pointer', transition: 'box-shadow 0.2s', borderLeft: retards.length > 0 ? '4px solid #DC2626' : '4px solid #16A34A', boxShadow: retards.length > 0 ? '0 2px 12px rgba(220,38,38,0.12)' : 'none' }} onClick={() => { setSelectedEleveObj(eleve); setModal('view_eleve'); }}>
+                <div className="card-header" style={{ padding: '14px 18px', background: retards.length > 0 ? '#FEF2F2' : 'var(--gray-50)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={styles.avatarSmall}>{eleve.prenom[0]}{eleve.nom[0]}</div>
                     <div>
@@ -179,11 +239,18 @@ export default function PaiementsPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span className={`badge ${inscrit ? 'badge-success' : 'badge-danger'}`}>{inscrit ? 'Inscrit' : 'Non inscrit'}</span>
-                    {peutModifier && <button className="btn btn-primary btn-sm" onClick={() => openPaiement(eleve.id)}>+ Paiement</button>}
+                    {!inscrit && <span className="badge badge-gray">Non inscrit</span>}
+                    {retards.length > 0 ? (
+                      <span style={{ background: '#DC2626', color: 'white', borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <AlertTriangle size={12} /> Non payé ({retards.length} tranche{retards.length > 1 ? 's' : ''})
+                      </span>
+                    ) : (
+                      inscrit && <span style={{ background: '#16A34A', color: 'white', borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={12} /> À jour</span>
+                    )}
+                    {peutModifier && <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); openPaiement(eleve.id); }}>+ Paiement</button>}
                   </div>
                 </div>
-                <div className="card-body">
+                <div className="card-body" style={{ padding: '14px 18px' }}>
                   <div style={styles.payProgress}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
                       <span>Payé: <strong style={{ color: 'var(--success)' }}>{total.toLocaleString('fr')} FCFA</strong></span>
@@ -193,15 +260,28 @@ export default function PaiementsPage() {
                       <div style={{ ...styles.progressFill, width: Math.min(100, (total / totalDu) * 100) + '%' }}/>
                     </div>
                   </div>
+                  {retards.length > 0 && (
+                    <div style={{ marginTop: 12, padding: 12, background: '#FEF2F2', borderRadius: 8, border: '1px solid #FCA5A5' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#991B1B', marginBottom: 6 }}>Tranches en retard :</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {retards.map(t => (
+                          <div key={t.id} style={{ fontSize: 12, color: '#B91C1C', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{t.nom} (Échéance: {new Date(t.echeance).toLocaleDateString('fr-FR')})</span>
+                            <strong>{t.montant.toLocaleString('fr')} FCFA</strong>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {pays.length > 0 && (
                     <div style={{ marginTop: 12 }}>
                       {pays.map(p => (
                         <div key={p.id} style={styles.payItem}>
-                          <span style={{ fontSize: 12 }}>{p.recu} — {p.type} — {p.date}</span>
+                          <span style={{ fontSize: 12 }}>{p.recu} — {p.type} {p.trancheId ? `(${frais.tranches.find(t => t.id === p.trancheId)?.nom})` : ''} — {new Date(p.date).toLocaleDateString('fr-FR')}</span>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <strong style={{ color: 'var(--success)' }}>{p.montant.toLocaleString('fr')} FCFA</strong>
                             <span className="badge badge-success" style={{ fontSize: 10 }}>{p.statut}</span>
-                            <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', display: 'flex', alignItems: 'center' }} onClick={() => printRecu(p)}><Printer size={14} /></button>
+                            <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', display: 'flex', alignItems: 'center' }} onClick={(e) => { e.stopPropagation(); printRecu(p); }}><Printer size={14} /></button>
                           </div>
                         </div>
                       ))}
@@ -211,6 +291,11 @@ export default function PaiementsPage() {
               </div>
             );
           })}
+          {elevesFinal.length === 0 && (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+              Aucun élève trouvé pour ce filtre.
+            </div>
+          )}
         </div>
       )}
 
@@ -324,6 +409,26 @@ export default function PaiementsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL VUE ÉLÈVE DÉTAILLÉE */}
+      {modal === 'view_eleve' && selectedEleveObj && (
+        <StudentProfileModal
+          selected={selectedEleveObj}
+          setModal={setModal}
+          viewTab={viewTab}
+          setViewTab={setViewTab}
+          t={{ dossierEleve: 'Profil Élève', informations: 'Informations', discipline: 'Discipline', classe: 'Classe', dateNaissance: 'Date de naissance', lieuNaissance: 'Lieu de naissance', sexe: 'Sexe', masculin: 'Masculin', feminin: 'Féminin', adresse: 'Adresse', dateInscription: 'Date d\'inscription', anneeScolaire: 'Année scolaire', pere: 'Père', mere: 'Mère', tuteur: 'Tuteur', modifier: 'Modifier', transportScolaire: 'Transport Scolaire', emprunterBus: 'Bus', telephone: 'Téléphone', emailAcces: 'Email', nomComplet: 'Nom complet' }}
+          peutEditerDiscipline={() => false}
+          role={utilisateurActif?.role}
+          isFondateur={utilisateurActif?.role === 'fondateur'}
+          newIncident={{ type: 'Absence', date: new Date().toISOString().slice(0,10) }}
+          setNewIncident={() => {}}
+          handleAddIncident={() => {}}
+          peutModifier={false}
+          openEdit={null}
+          getClasse={(id) => classes.find(c => c.id === id)}
+        />
       )}
     </div>
   );

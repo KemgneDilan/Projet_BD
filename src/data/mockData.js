@@ -109,19 +109,19 @@ const users = [
 
 // ── CLASSES ──────────────────────────────────────────────────────────────────────
 const classes = [
-  { id: 'c1', nom: 'PS A', niveau: 'PS', section: 'francophone', annee: '2025-2026', effectif: 22, enseignantId: 'u5' },
-  { id: 'c2', nom: 'PS B', niveau: 'PS', section: 'anglophone', annee: '2025-2026', effectif: 24, enseignantId: 'u5' },
-  { id: 'c3', nom: 'MS', niveau: 'MS', section: 'bilingue', annee: '2025-2026', effectif: 20, enseignantId: 'u6' },
-  { id: 'c4', nom: 'GS A', niveau: 'GS', section: 'francophone', annee: '2025-2026', effectif: 18, enseignantId: 'u3' },
-  { id: 'c5', nom: 'CP A', niveau: 'CP', section: 'francophone', annee: '2025-2026', effectif: 26, enseignantId: 'u3' },
-  { id: 'c6', nom: 'CP B', niveau: 'CP', section: 'bilingue', annee: '2025-2026', effectif: 24, enseignantId: 'u6' },
-  { id: 'c7', nom: 'CE1 A', niveau: 'CE1', section: 'francophone', annee: '2025-2026', effectif: 23, enseignantId: 'u7' },
-  { id: 'c8', nom: 'CE1 B', niveau: 'CE1', section: 'anglophone', annee: '2025-2026', effectif: 21, enseignantId: 'u7' },
-  { id: 'c9', nom: 'CE2 A', niveau: 'CE2', section: 'francophone', annee: '2025-2026', effectif: 25, enseignantId: 'u8' },
-  { id: 'c10', nom: 'CE2 B', niveau: 'CE2', section: 'bilingue', annee: '2025-2026', effectif: 22, enseignantId: 'u8' },
-  { id: 'c11', nom: 'CM1 A', niveau: 'CM1', section: 'francophone', annee: '2025-2026', effectif: 24, enseignantId: 'u9' },
-  { id: 'c12', nom: 'CM1 B', niveau: 'CM1', section: 'anglophone', annee: '2025-2026', effectif: 23, enseignantId: 'u9' },
-  { id: 'c13', nom: 'CM2', niveau: 'CM2', section: 'francophone', annee: '2025-2026', effectif: 20, enseignantId: 'u10' },
+  { id: 'c1', nom: 'PS A', niveau: 'PS', section: 'francophone', annee: '2025-2026', effectif: 22, enseignantId: 'u5', salle: 'S01' },
+  { id: 'c2', nom: 'PS B', niveau: 'PS', section: 'anglophone', annee: '2025-2026', effectif: 24, enseignantId: 'u5', salle: 'S02' },
+  { id: 'c3', nom: 'MS', niveau: 'MS', section: 'bilingue', annee: '2025-2026', effectif: 20, enseignantId: 'u6', salle: 'S03' },
+  { id: 'c4', nom: 'GS A', niveau: 'GS', section: 'francophone', annee: '2025-2026', effectif: 18, enseignantId: 'u3', salle: 'S04' },
+  { id: 'c5', nom: 'CP A', niveau: 'CP', section: 'francophone', annee: '2025-2026', effectif: 26, enseignantId: 'u3', salle: 'S05' },
+  { id: 'c6', nom: 'CP B', niveau: 'CP', section: 'bilingue', annee: '2025-2026', effectif: 24, enseignantId: 'u6', salle: 'S06' },
+  { id: 'c7', nom: 'CE1 A', niveau: 'CE1', section: 'francophone', annee: '2025-2026', effectif: 23, enseignantId: 'u7', salle: 'S07' },
+  { id: 'c8', nom: 'CE1 B', niveau: 'CE1', section: 'anglophone', annee: '2025-2026', effectif: 21, enseignantId: 'u7', salle: 'S08' },
+  { id: 'c9', nom: 'CE2 A', niveau: 'CE2', section: 'francophone', annee: '2025-2026', effectif: 25, enseignantId: 'u8', salle: 'S09' },
+  { id: 'c10', nom: 'CE2 B', niveau: 'CE2', section: 'bilingue', annee: '2025-2026', effectif: 22, enseignantId: 'u8', salle: 'S10' },
+  { id: 'c11', nom: 'CM1 A', niveau: 'CM1', section: 'francophone', annee: '2025-2026', effectif: 24, enseignantId: 'u9', salle: 'S11' },
+  { id: 'c12', nom: 'CM1 B', niveau: 'CM1', section: 'anglophone', annee: '2025-2026', effectif: 23, enseignantId: 'u9', salle: 'S12' },
+  { id: 'c13', nom: 'CM2', niveau: 'CM2', section: 'francophone', annee: '2025-2026', effectif: 20, enseignantId: 'u10', salle: 'S13' },
 ];
 
 // Génération des données d'élèves
@@ -464,8 +464,43 @@ const messages = [
   }
 ];
 
+// ── EMPLOIS DU TEMPS ───────────────────────────────────────────────────────────────
+const emploisDuTemps = [
+  {
+    id: 'edt1',
+    classeId: 'c1',
+    heureDebut: '08:00',
+    dureeCours: 55,
+    tranches: 7,
+    pauses: [{ apresTranche: 2, duree: 30 }, { apresTranche: 5, duree: 60 }],
+    grille: {
+      Lundi: { 0: 'm1c1', 1: 'm2c1', 2: 'm3c1', 3: 'm4c1', 4: 'm5c1', 5: 'm1c1', 6: 'm2c1' },
+      Mardi: { 0: 'm2c1', 1: 'm1c1', 2: 'm4c1', 3: 'm3c1', 4: 'm5c1', 5: 'm2c1', 6: 'm1c1' },
+      Mercredi: { 0: 'm3c1', 1: 'm5c1', 2: 'm1c1', 3: 'm2c1', 4: '', 5: '', 6: '' },
+      Jeudi: { 0: 'm1c1', 1: 'm2c1', 2: 'm4c1', 3: 'm3c1', 4: 'm5c1', 5: 'm1c1', 6: 'm2c1' },
+      Vendredi: { 0: 'm4c1', 1: 'm5c1', 2: 'm1c1', 3: 'm2c1', 4: 'm3c1', 5: 'm4c1', 6: 'm5c1' }
+    }
+  },
+  {
+    id: 'edt2',
+    classeId: 'c4',
+    heureDebut: '07:30',
+    dureeCours: 50,
+    tranches: 8,
+    pauses: [{ apresTranche: 3, duree: 20 }, { apresTranche: 6, duree: 45 }],
+    grille: {
+      Lundi: { 0: 'm1c4', 1: 'm2c4', 2: 'm3c4', 3: 'm4c4', 4: 'm5c4', 5: 'm6c4', 6: 'm1c4', 7: 'm2c4' },
+      Mardi: { 0: 'm3c4', 1: 'm4c4', 2: 'm1c4', 3: 'm2c4', 4: 'm6c4', 5: 'm5c4', 6: 'm3c4', 7: 'm4c4' },
+      Mercredi: { 0: 'm1c4', 1: 'm2c4', 2: 'm3c4', 3: 'm4c4', 4: '', 5: '', 6: '', 7: '' },
+      Jeudi: { 0: 'm5c4', 1: 'm6c4', 2: 'm1c4', 3: 'm2c4', 4: 'm3c4', 5: 'm4c4', 6: 'm5c4', 7: 'm6c4' },
+      Vendredi: { 0: 'm2c4', 1: 'm1c4', 2: 'm4c4', 3: 'm3c4', 4: 'm6c4', 5: 'm5c4', 6: 'm2c4', 7: 'm1c4' }
+    }
+  }
+];
+
 export default {
   users, classes, eleves, matieres,
   paiements, notes, frais,
-  coefficients, evaluations, messages
+  coefficients, evaluations, messages,
+  emploisDuTemps
 };

@@ -5,14 +5,14 @@
  * - Enseignant : stats de ses classes avec liens cliquables
  * - Parent : suivi de ses enfants
  */
-import React from 'react';
-import { useApp } from './AppContext';
-import T from './src/i18n/translations';
+import React, { useState } from 'react';
+import { useApp } from '../context/AppContext';
+import T from '../i18n/translations';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { Users, FileText, CreditCard, Bus, School, UserCircle } from 'lucide-react';
+import { Users, FileText, CreditCard, Bus, School, UserCircle, Calendar, Clock } from 'lucide-react';
 
 const COLORS = ['#1B4F72','#2980B9','#F39C12','#27AE60','#E74C3C','#8E44AD'];
 
@@ -110,8 +110,11 @@ function ParentDashboard() {
 
 /* ── Dashboard Enseignant ─────────────────────────────────────────── */
 function TeacherDashboard() {
-  const { utilisateurActif, eleves, classes, notes, langue, naviguer } = useApp();
+  const { utilisateurActif, eleves, classes, notes, langue, naviguer, emploisDuTemps, matieres } = useApp();
   const t = T[langue] || T.fr;
+
+  const [edtModal, setEdtModal] = useState(false);
+  const [selectedClasseEdt, setSelectedClasseEdt] = useState(null);
 
   const mesClassesIds = utilisateurActif?.classesIds?.length
     ? utilisateurActif.classesIds
@@ -121,6 +124,35 @@ function TeacherDashboard() {
   const bulletinsCount = notes.filter(n => mesEleves.some(e => e.id === n.eleveId)).length;
   const busCount = mesEleves.filter(e => e.bus).length;
   const mesClasses = classes.filter(c => mesClassesIds.includes(c.id));
+
+  const generateTimeSlots = (config) => {
+    if (!config) return [];
+    const slots = [];
+    let [h, m] = config.heureDebut.split(':').map(Number);
+    let currentTime = h * 60 + m;
+
+    for (let i = 0; i < config.tranches; i++) {
+      const startH = Math.floor(currentTime / 60).toString().padStart(2, '0');
+      const startM = (currentTime % 60).toString().padStart(2, '0');
+      
+      currentTime += config.dureeCours;
+      const endH = Math.floor(currentTime / 60).toString().padStart(2, '0');
+      const endM = (currentTime % 60).toString().padStart(2, '0');
+      
+      slots.push({ i, type: 'cours', label: `${startH}:${startM} - ${endH}:${endM}` });
+
+      const pause = config.pauses.find(p => p.apresTranche === i + 1);
+      if (pause) {
+        const pStartH = Math.floor(currentTime / 60).toString().padStart(2, '0');
+        const pStartM = (currentTime % 60).toString().padStart(2, '0');
+        currentTime += pause.duree;
+        const pEndH = Math.floor(currentTime / 60).toString().padStart(2, '0');
+        const pEndM = (currentTime % 60).toString().padStart(2, '0');
+        slots.push({ type: 'pause', label: `${pStartH}:${pStartM} - ${pEndH}:${pEndM}`, duree: pause.duree });
+      }
+    }
+    return slots;
+  };
 
   return (
     <div style={S.container}>
@@ -140,6 +172,87 @@ function TeacherDashboard() {
           onClick={() => naviguer('bulletins')} />
         <StatCard icon={<Bus size={24} />} label={t.elevesEnBus} value={busCount} color="#F39C12" onClick={() => naviguer('transport')} />
       </div>
+
+      {mesClasses.length > 0 && (
+        <div className="card" style={{ marginTop: 24 }}>
+          <div className="card-header"><h3 className="card-title"><Calendar size={20} /> {t.emploiDuTemps}</h3></div>
+          <div className="card-body" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {mesClasses.map(c => (
+              <button key={c.id} className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 8, borderColor: 'var(--border-color)' }} onClick={() => {
+                setSelectedClasseEdt(c);
+                setEdtModal(true);
+              }}>
+                <Clock size={16} /> {t.emploiDuTemps} {c.nom}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {edtModal && selectedClasseEdt && (
+        <div className="modal-overlay" onClick={() => setEdtModal(false)}>
+          <div className="modal" style={{ maxWidth: 1000, width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="card-title">{t.emploiDuTempsDe} {selectedClasseEdt.nom}</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setEdtModal(false)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ overflowY: 'auto', padding: 20 }}>
+              {(() => {
+                const config = emploisDuTemps.find(e => e.classeId === selectedClasseEdt.id);
+                if (!config) {
+                  return (
+                    <div className="empty-state">
+                      <Calendar size={48} color="var(--text-muted)" style={{ marginBottom: 16 }} />
+                      <h3>{t.aucunEmploiTemps}</h3>
+                      <p>{t.aucunEmploiTempsDesc}</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="table" style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ background: 'var(--gray-50)', padding: '10px' }}>{t.horaire}</th>
+                          {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'].map(d => <th key={d} style={{ background: 'var(--primary)', color: 'white', padding: '10px', textAlign: 'center' }}>{d}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {generateTimeSlots(config).map((slot, sIdx) => (
+                          <tr key={sIdx} style={slot.type === 'pause' ? { background: '#f8f9fa' } : {}}>
+                            <td style={{ padding: '10px', fontWeight: 600, fontSize: 13, color: 'var(--text-secondary)', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                              {slot.label}
+                              {slot.type === 'pause' && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.pause} ({slot.duree} min)</div>}
+                            </td>
+                            {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'].map(d => {
+                              const matiereId = config.grille[d]?.[slot.i];
+                              const matiere = matieres.find(m => m.id === matiereId);
+                              return (
+                                <td key={d} style={{ borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: 6, textAlign: 'center' }}>
+                                  {slot.type === 'pause' ? (
+                                    <span style={{ color: '#adb5bd', fontStyle: 'italic', fontSize: 13 }}>-- {t.pause} --</span>
+                                  ) : (
+                                    <div style={{ padding: '6px', fontSize: 13, fontWeight: matiere ? 600 : 400, color: matiere ? 'var(--text-primary)' : 'var(--text-muted)', background: matiere ? '#f0f4ff' : 'transparent', borderRadius: 4 }}>
+                                      {matiere ? matiere.nom : '-'}
+                                    </div>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setEdtModal(false)}>{t.fermer}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -166,7 +279,7 @@ function AdminDashboard() {
 
   return (
     <div style={S.container}>
-      <div style={{ ...S.welcomeBox, background:'linear-gradient(135deg,#0D2B40,#1B4F72)', borderRadius:16, padding:'28px 32px' }}>
+      <div style={{ ...S.welcomeBox, background:'linear-gradient(135deg, #1B4F72 0%, #2980B9 100%)', borderRadius:16, padding:'28px 32px', boxShadow: '0 4px 15px rgba(41, 128, 185, 0.2)' }}>
         <div>
           <h2 style={{ ...S.welcomeTitle, color:'white' }}>
             {t.bienvenue?.replace('!','')} {utilisateurActif?.prenom}! 🎉

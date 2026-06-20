@@ -4,8 +4,8 @@
  * design responsive mobile, et support FR/EN.
  */
 import React, { useState } from 'react';
-import { useApp } from './AppContext';
-import T from './src/i18n/translations';
+import { useApp } from '../context/AppContext';
+import T from '../i18n/translations';
 
 /* Symboles flottants pour l'animation de fond (remplacement emojis par formes) */
 const BG_SYMBOLS = [
@@ -26,7 +26,7 @@ const BG_SYMBOLS = [
   { symbol:'■', style:{ top:'30%', left:'50%', fontSize:10, color:'rgba(255,255,255,.35)', animation:'drift4 28s ease-in-out infinite' } },
 ];
 
-import { Moon, Sun, Lock, GraduationCap } from 'lucide-react';
+import { Moon, Sun, Lock, GraduationCap, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, langue, toggleLangue, darkMode, toggleDarkMode, schoolSettings } = useApp();
@@ -36,6 +36,7 @@ export default function LoginPage() {
   const [mdp,     setMdp]     = useState('');
   const [err,     setErr]     = useState('');
   const [loading, setLoading] = useState(false);
+  const [showMdp, setShowMdp] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -148,11 +149,34 @@ export default function LoginPage() {
             </div>
             <div className="form-group">
               <label className="form-label">{t.motDePasse}</label>
-              <input
-                className="form-control" type="password"
-                value={mdp} onChange={e => setMdp(e.target.value)}
-                placeholder="••••••••" required
-              />
+              <div style={{ position: 'relative', display: 'block' }}>
+                <input
+                  className="form-control" type={showMdp ? "text" : "password"}
+                  value={mdp} onChange={e => setMdp(e.target.value)}
+                  placeholder="••••••••" required
+                  style={{ paddingRight: '40px', width: '100%', margin: 0 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMdp(!showMdp)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#64748B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 0
+                  }}
+                  title={showMdp ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                >
+                  {showMdp ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             {err && <div style={styles.errBox}>{err}</div>}

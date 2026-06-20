@@ -6,7 +6,7 @@
  * et navigation avec historique.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import mockData from './src/data/mockData';
+import mockData from '../data/mockData';
 
 const AppContext = createContext();
 
@@ -34,6 +34,7 @@ export function AppProvider({ children }) {
   const [coefficients, setCoefficients] = useState(mockData.coefficients);
   const [evaluations,  setEvaluations]  = useState(mockData.evaluations);
   const [messages,     setMessages]     = useState(mockData.messages);
+  const [emploisDuTemps, setEmploisDuTemps] = useState(mockData.emploisDuTemps || []);
   const [schoolSettings, setSchoolSettings] = useState({
     nom: 'École Les Étoiles',
     sousTitreFR: 'Primaire & Maternelle — Yaoundé, Cameroun',
@@ -49,10 +50,14 @@ export function AppProvider({ children }) {
   const [darkMode,         setDarkMode]         = useState(false);
   const [langue,           setLangue]           = useState('fr'); // 'fr' | 'en'
   const [ready,            setReady]            = useState(false);
+  const [isSidebarOpen,    setSidebarOpen]      = useState(false);
+
+  const toggleSidebar = () => setSidebarOpen(prev => !prev);
 
   /* ── Navigation avec historique ─────────────────────────────── */
   const [pageHistory, setPageHistory] = useState(['dashboard']);
   const currentPage = pageHistory[pageHistory.length - 1];
+  const [navParam, setNavParam] = useState(null);
 
   /** Navigue vers une nouvelle page en empilant dans l'historique */
   const naviguer = useCallback((page) => {
@@ -95,10 +100,48 @@ export function AppProvider({ children }) {
   ═══════════════════════════════════════════════════════════════ */
   const login = async (email, mdp) => {
     await delay(200);
-    const user = utilisateurs.find(u => u.email === email && u.motDePasse === mdp && u.actif);
+    let user = utilisateurs.find(u => u.email === email && u.motDePasse === mdp && u.actif);
+    let isFirstParentLogin = false;
+
+    if (!user) {
+      // Vérifier si c'est un parent qui se connecte pour la première fois (identifiant = email, mdp = téléphone)
+      const eleveLien = eleves.find(e => e.parentEmail === email && e.parentTel === mdp);
+      if (eleveLien) {
+        const parentExiste = utilisateurs.find(u => u.email === email);
+        if (!parentExiste) {
+          // Créer le compte parent s'il n'existe pas encore dans utilisateurs
+          user = {
+            id: `parent-${Date.now()}`,
+            nom: eleveLien.parentNom || 'Parent',
+            prenom: '',
+            email: email,
+            motDePasse: mdp,
+            telephone: mdp,
+            role: 'parent',
+            actif: true
+          };
+          setUtilisateurs(prev => [...prev, user]);
+          isFirstParentLogin = true;
+        }
+      }
+    } else {
+      // L'utilisateur s'est connecté. Vérifier s'il a encore son mot de passe par défaut (numéro de téléphone)
+      if (user.role === 'parent') {
+        const eleveLien = eleves.find(e => e.parentEmail === user.email);
+        if (eleveLien && eleveLien.parentTel === mdp) {
+          isFirstParentLogin = true;
+        }
+      }
+    }
+
     if (!user) return false;
+
     setUtilisateurActif(user);
-    setPageHistory(['dashboard']);
+    if (isFirstParentLogin) {
+      setPageHistory(['parametres']);
+    } else {
+      setPageHistory(['dashboard']);
+    }
     return true;
   };
 
@@ -129,8 +172,15 @@ export function AppProvider({ children }) {
 
   const supprimerEleve = async (id) => {
     await delay(100);
-    setEleves(prev => prev.filter(el => el.id !== id));
-    notify('Élève supprimé', 'warning');
+    // Archive au lieu de supprimer définitivement
+    setEleves(prev => prev.map(el => el.id === id ? { ...el, statut: 'archive', dateArchivage: new Date().toISOString() } : el));
+    notify('Élève archivé — visible uniquement pour l\'admin', 'warning');
+  };
+
+  const restaurerEleve = async (id) => {
+    await delay(100);
+    setEleves(prev => prev.map(el => el.id === id ? { ...el, statut: 'actif', dateArchivage: null } : el));
+    notify('Élève restauré avec succès');
   };
 
   /* ═══════════════════════════════════════════════════════════════
@@ -157,6 +207,18 @@ export function AppProvider({ children }) {
     setCoefficients(prev => prev.filter(c => c.classeId !== id));
     setEvaluations(prev => prev.filter(e => e.classeId !== id));
     notify('Classe supprimée', 'warning');
+  };
+
+  const sauvegarderEmploiDuTemps = async (classeId, data) => {
+    await delay(100);
+    setEmploisDuTemps(prev => {
+      const exists = prev.some(e => e.classeId === classeId);
+      if (exists) {
+        return prev.map(e => e.classeId === classeId ? { ...e, ...data } : e);
+      }
+      return [...prev, { id: `edt${Date.now()}`, classeId, ...data }];
+    });
+    notify('Emploi du temps sauvegardé');
   };
 
   /* ═══════════════════════════════════════════════════════════════
@@ -371,8 +433,15 @@ export function AppProvider({ children }) {
 
   const supprimerUtilisateur = async (id) => {
     await delay(100);
-    setUtilisateurs(prev => prev.filter(u => u.id !== id));
-    notify('Utilisateur supprimé', 'warning');
+    // Désactive au lieu de supprimer définitivement
+    setUtilisateurs(prev => prev.map(u => u.id === id ? { ...u, actif: false, dateDesactivation: new Date().toISOString() } : u));
+    notify('Utilisateur désactivé — visible uniquement en admin', 'warning');
+  };
+
+  const restaurerUtilisateur = async (id) => {
+    await delay(100);
+    setUtilisateurs(prev => prev.map(u => u.id === id ? { ...u, actif: true, dateDesactivation: null } : u));
+    notify('Utilisateur réactivé avec succès');
   };
 
   /* ═══════════════════════════════════════════════════════════════
@@ -558,12 +627,13 @@ export function AppProvider({ children }) {
       // État données
       utilisateurs, classes, eleves, matieres,
       frais, paiements, notes, coefficients, evaluations, messages, schoolSettings,
+      emploisDuTemps, sauvegarderEmploiDuTemps,
 
       // UI globale
-      utilisateurActif, notification, darkMode, langue,
+      utilisateurActif, notification, darkMode, langue, isSidebarOpen, setSidebarOpen, toggleSidebar,
 
       // Navigation
-      currentPage, pageHistory, naviguer, goBack,
+      currentPage, pageHistory, naviguer, goBack, navParam, setNavParam,
 
       // Thème & langue
       toggleDarkMode, toggleLangue,
@@ -572,9 +642,9 @@ export function AppProvider({ children }) {
       login, logout,
 
       // Élèves
-      ajouterEleve, modifierEleve, supprimerEleve,
+      ajouterEleve, modifierEleve, supprimerEleve, restaurerEleve,
 
-      // Classes
+      // Classes et Emplois du temps
       ajouterClasse, modifierClasse, supprimerClasse,
 
       // Matières (par classe)
@@ -593,7 +663,7 @@ export function AppProvider({ children }) {
       definirEvaluations, modifierCoefficient,
 
       // Utilisateurs
-      ajouterUtilisateur, modifierUtilisateur, supprimerUtilisateur,
+      ajouterUtilisateur, modifierUtilisateur, supprimerUtilisateur, restaurerUtilisateur,
 
       // Frais
       setFrais: saveFrais,

@@ -6,8 +6,8 @@
  * - Génération du bulletin final (PDF) avec en-tête officielle bilingue camerounaise.
  */
 import React, { useState } from 'react';
-import { useApp } from './AppContext';
-import T from './src/i18n/translations';
+import { useApp } from '../context/AppContext';
+import T from '../i18n/translations';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { FileText, Download, FileSpreadsheet, ClipboardList } from 'lucide-react';
@@ -20,12 +20,17 @@ export default function BulletinsPage() {
   } = useApp();
   const t = T[langue] || T.fr;
 
+  const role = utilisateurActif?.role;
+  const isParent = role === 'parent';
+
   const [selectedEleve, setSelectedEleve] = useState('');
-  const [sequence, setSequence] = useState('SEQ1');
+  const [annee, setAnnee] = useState(isParent ? '' : '2025-2026');
+  const [sequence, setSequence] = useState(isParent ? '' : 'SEQ1');
   const [mode, setMode] = useState('view'); // 'view' | 'edit'
   const [form, setForm] = useState(null);
+  const [searchEleve, setSearchEleve] = useState(''); // recherche par mot-clé
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const role = utilisateurActif?.role;
   const peutSaisir = peutAcceder('bulletins_ecriture');
 
   // Filtrage des élèves pour la sélection
@@ -39,10 +44,20 @@ export default function BulletinsPage() {
     return true;
   });
 
+  // Filtrage par mot-clé (nom, prénom, matricule)
+  const elevesFiltered = searchEleve.trim()
+    ? elevesDispos.filter(e => {
+        const q = searchEleve.toLowerCase();
+        return e.nom.toLowerCase().includes(q)
+          || e.prenom.toLowerCase().includes(q)
+          || (e.matricule || '').toLowerCase().includes(q);
+      })
+    : elevesDispos;
+
   const currentEleve = eleves.find(e => e.id === selectedEleve);
   const currentClasse = classes.find(c => c.id === currentEleve?.classeId);
   const matieresClasse = currentClasse ? getMatieresClasse(currentClasse.id) : [];
-  const existingBulletin = notes.find(n => n.eleveId === selectedEleve && n.sequence === sequence);
+  const existingBulletin = notes.find(n => n.eleveId === selectedEleve && n.sequence === sequence && n.anneeScolaire === annee);
 
   // Initialisation du formulaire
   const initForm = () => {
@@ -52,7 +67,7 @@ export default function BulletinsPage() {
       setForm({
         eleveId: selectedEleve,
         sequence,
-        anneeScolaire: '2025-2026',
+        anneeScolaire: annee || '2025-2026',
         notes: matieresClasse.map(m => ({ matiereId: m.id, noteFinale: '', appreciation: '' })),
         absences: 0, retards: 0, conduite: 'Bonne', soin: 'Soigné',
         ponctualite: 'Ponctuel', dateConseil: new Date().toISOString().slice(0, 10),
@@ -195,12 +210,74 @@ export default function BulletinsPage() {
           <div className="section-subtitle">{t.choisirEleveSeq}</div>
         </div>
         
-        <div style={{ display: 'flex', gap: 12 }}>
-          <select className="form-control" value={selectedEleve} onChange={e => { setSelectedEleve(e.target.value); setMode('view'); }} style={{ minWidth: 200 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          {/* Recherche par mot-clé */}
+          <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <input
+              className="form-control"
+              placeholder="Rechercher un élève (nom, matricule...)"
+              value={searchEleve}
+              onChange={e => { setSearchEleve(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              style={{ paddingRight: 36 }}
+            />
+            {searchEleve && (
+              <button
+                onClick={() => { setSearchEleve(''); setSelectedEleve(''); setMode('view'); }}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1 }}
+              >✕</button>
+            )}
+            {/* Suggestions */}
+            {showSuggestions && searchEleve && elevesFiltered.length > 0 && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 300, background: 'var(--bg-card)', border: '1.5px solid var(--border-color)', borderRadius: 10, boxShadow: 'var(--shadow-lg)', marginTop: 4, overflow: 'hidden', maxHeight: 260, overflowY: 'auto' }}>
+                {elevesFiltered.map(e => {
+                  const cl = classes.find(c => c.id === e.classeId);
+                  return (
+                    <div key={e.id}
+                      onMouseDown={() => { setSelectedEleve(e.id); setSearchEleve(`${e.prenom} ${e.nom}`); setShowSuggestions(false); setMode('view'); }}
+                      style={{ padding: '10px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--border-color)', background: selectedEleve === e.id ? 'var(--gray-50)' : 'transparent' }}
+                      onMouseEnter={el => el.currentTarget.style.background = 'var(--gray-50)'}
+                      onMouseLeave={el => el.currentTarget.style.background = selectedEleve === e.id ? 'var(--gray-50)' : 'transparent'}
+                    >
+                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+                        {e.prenom[0]}{e.nom[0]}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{e.prenom} {e.nom}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{e.matricule} {cl ? `· ${cl.nom}` : ''}</div>
+                      </div>
+                      {selectedEleve === e.id && <span style={{ marginLeft: 'auto', color: 'var(--success)' }}>✓</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {showSuggestions && searchEleve && elevesFiltered.length === 0 && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 300, background: 'var(--bg-card)', border: '1.5px solid var(--border-color)', borderRadius: 10, boxShadow: 'var(--shadow-lg)', marginTop: 4, padding: '14px 16px', color: 'var(--text-muted)', fontSize: 13 }}>Aucun élève trouvé</div>
+            )}
+          </div>
+
+          {/* OU : sélection via liste déroulante */}
+          <select className="form-control" value={selectedEleve}
+            onChange={e => { setSelectedEleve(e.target.value); setSearchEleve(''); setMode('view'); }}
+            style={{ minWidth: 200, maxWidth: 260 }}
+          >
             <option value="">{t.selectionnerEleve}</option>
             {elevesDispos.map(e => <option key={e.id} value={e.id}>{e.prenom} {e.nom} — {e.matricule}</option>)}
           </select>
-          <select className="form-control" value={sequence} onChange={e => { setSequence(e.target.value); setMode('view'); }} style={{ width: 120 }}>
+
+          {/* Année Académique */}
+          <select className="form-control" value={annee} onChange={e => { setAnnee(e.target.value); setMode('view'); }} style={{ width: 140 }}>
+            <option value="">Année</option>
+            <option value="2023-2024">2023-2024</option>
+            <option value="2024-2025">2024-2025</option>
+            <option value="2025-2026">2025-2026</option>
+          </select>
+
+          {/* Séquence */}
+          <select className="form-control" value={sequence} onChange={e => { setSequence(e.target.value); setMode('view'); }} style={{ width: 140 }}>
+            <option value="">Séquence</option>
             {['SEQ1', 'SEQ2', 'SEQ3', 'SEQ4', 'SEQ5', 'SEQ6', 'TRIM1', 'TRIM2', 'TRIM3'].map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
@@ -209,13 +286,13 @@ export default function BulletinsPage() {
       </div>
 
       {/* ── Affichage Bulletin ── */}
-      {selectedEleve ? (
+      {selectedEleve && (!isParent || (annee && sequence)) ? (
         <div className="card animate-fade">
           <div className="card-header" style={{ background: 'var(--gray-50)' }}>
             <div>
               <h3 className="card-title">{currentEleve?.prenom} {currentEleve?.nom}</h3>
               <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                {currentClasse?.nom} · {currentEleve?.matricule} · {sequence}
+                {currentClasse?.nom} · {currentEleve?.matricule} · {sequence} · {annee}
               </div>
             </div>
             
@@ -240,11 +317,19 @@ export default function BulletinsPage() {
 
           <div className="card-body">
             {!existingBulletin && mode === 'view' ? (
-              <div className="empty-state">
-                <FileText size={48} color="var(--text-muted)" style={{ marginBottom: 16 }} />
-                <h3>Bulletin non saisi</h3>
-                {peutSaisir && <p>Cliquez sur "Saisir les notes" pour commencer.</p>}
-              </div>
+              isParent && selectedEleve && (!annee || !sequence) ? (
+                <div className="empty-state">
+                  <FileText size={52} color="var(--text-muted)" style={{ marginBottom: 16 }} />
+                  <h3>Sélection incomplète</h3>
+                  <p>Veuillez choisir une année académique et une séquence pour afficher le bulletin.</p>
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <FileText size={48} color="var(--text-muted)" style={{ marginBottom: 16 }} />
+                  <h3>Bulletin non saisi</h3>
+                  {peutSaisir && <p>Cliquez sur "Saisir les notes" pour commencer.</p>}
+                </div>
+              )
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 
@@ -385,6 +470,12 @@ export default function BulletinsPage() {
               </div>
             )}
           </div>
+        </div>
+      ) : isParent && selectedEleve && (!annee || !sequence) ? (
+        <div className="empty-state">
+          <FileText size={52} color="var(--text-muted)" style={{ marginBottom: 16 }} />
+          <h3>Sélection incomplète</h3>
+          <p>Veuillez choisir une année académique et une séquence pour afficher le bulletin.</p>
         </div>
       ) : (
         <div className="empty-state">
